@@ -22,3 +22,6 @@ def root():
 
 
 app.include_router(api_router, prefix=settings.api_v1_prefix)
+print("RUTAS CARGADAS:")
+for route in app.routes:
+    print(route.path, route.name)
