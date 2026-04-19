@@ -4,7 +4,10 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.modules.tables.schemas import TableCreate, TableRead, TableUpdate
 from app.modules.tables.service import create_table, get_table_by_id, get_tables, update_table
-
+from app.modules.auth.dependencies import get_current_user
+from app.modules.users.model import Usuario
+from app.modules.tables.schemas import AvailableTableResponse
+from app.modules.tables.service import get_available_tables
 
 router = APIRouter(prefix="/tables", tags=["Tables"])
 
@@ -47,5 +50,27 @@ def update_existing_table(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+@router.get("/available", response_model=list[AvailableTableResponse])
+def read_available_tables(
+    date: str = Query(...),
+    start_time: str = Query(...),
+    end_time: str = Query(...),
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    try:
+        return get_available_tables(
+            db,
+            fecha=date,
+            hora_inicio=start_time,
+            hora_fin=end_time,
+            usuario_id=current_user.id_usuario,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )

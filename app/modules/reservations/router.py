@@ -2,12 +2,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.modules.auth.dependencies import get_current_user
+from app.modules.users.model import Usuario
+
 from app.modules.reservations.schemas import (
     ReservationCreate,
     ReservationDetailCreate,
     ReservationDetailRead,
     ReservationRead,
     ReservationUpdate,
+    ReservationCheckoutRequest,
+    ReservationCheckoutResponse,
 )
 from app.modules.reservations.service import (
     create_reservation,
@@ -17,6 +22,7 @@ from app.modules.reservations.service import (
     get_reservation_details_by_reservation_id,
     get_reservations,
     update_reservation,
+    create_reservation_checkout
 )
 
 
@@ -116,4 +122,27 @@ def create_new_reservation_detail(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
+        )
+
+@router.post("/checkout", response_model=ReservationCheckoutResponse)
+def checkout_reservation(
+    payload: ReservationCheckoutRequest,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    try:
+        return create_reservation_checkout(
+            db,
+            payload=payload,
+            current_user=current_user,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al confirmar la reserva: {str(e)}",
         )

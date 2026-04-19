@@ -71,3 +71,14 @@ def delete_user(db: Session, user_id: int) -> None:
         raise ValueError("Usuario no encontrado.")
 
     repository.delete_user(db, user)
+
+def update_current_user(db, current_user: Usuario, payload):
+    current_user.nombre = payload.nombre
+    current_user.correo = payload.correo
+    current_user.telefono = payload.telefono
+
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+
+    return current_user

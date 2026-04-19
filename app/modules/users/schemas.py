@@ -41,3 +41,8 @@ class UserWithSecurityRead(UserRead):
     pregunta_seguridad: str
 
     model_config = ConfigDict(from_attributes=True)
+
+class UserUpdateSelf(BaseModel):
+    nombre: str = Field(..., min_length=1, max_length=50)
+    correo: EmailStr
+    telefono: int | None = None

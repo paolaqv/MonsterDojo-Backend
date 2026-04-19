@@ -21,3 +21,14 @@ class TableRead(TableBase):
     id_mesa: int
 
     model_config = ConfigDict(from_attributes=True)
+
+class AvailableTableInfo(BaseModel):
+    id_mesa: int
+    capacidad: int
+    ubicacion: str
+
+
+class AvailableTableResponse(BaseModel):
+    mesa: AvailableTableInfo
+    disponible: bool
+    proxima_disponibilidad: datetime | None = None

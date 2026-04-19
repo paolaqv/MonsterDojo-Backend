@@ -42,3 +42,21 @@ class ReservationDetailRead(ReservationDetailBase):
     id_detalleReserva: int
 
     model_config = ConfigDict(from_attributes=True)
+
+class ReservationCheckoutProductItem(BaseModel):
+    id_producto: int
+    cantidad: int = Field(..., gt=0)
+
+
+class ReservationCheckoutRequest(BaseModel):
+    date: str
+    start_time: str
+    end_time: str
+    mesa_id: int
+    productos: list[ReservationCheckoutProductItem] = []
+    juego_id: int | None = None
+
+
+class ReservationCheckoutResponse(BaseModel):
+    message: str
+    id_reserva: int
