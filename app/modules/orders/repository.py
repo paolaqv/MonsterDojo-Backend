@@ -1,9 +1,12 @@
+# app/modules/orders/repository.py
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.modules.orders.model import DetallePedido, Pedido
-from app.modules.orders.schemas import OrderCreate, OrderDetailCreate, OrderUpdate
+from app.modules.orders.schemas import OrderDetailCreate, OrderUpdate
 from app.modules.products.model import Producto
+from app.modules.reservations.model import Reserva
 from app.modules.tables.model import Mesa
 from app.modules.users.model import Usuario
 
@@ -33,18 +36,37 @@ def get_orders(db: Session, skip: int = 0, limit: int = 100) -> list[Pedido]:
     return list(db.scalars(stmt).all())
 
 
-def create_order(db: Session, order_data: OrderCreate) -> Pedido:
+def get_active_reservation_by_user_id(db: Session, user_id: int) -> Reserva | None:
+    stmt = (
+        select(Reserva)
+        .where(
+            Reserva.usuario_id_usuario == user_id,
+            Reserva.estado == "Reservado",
+        )
+        .order_by(Reserva.fecha_hora.desc())
+    )
+    return db.scalar(stmt)
+
+
+def create_order(
+    db: Session,
+    *,
+    tipo: str,
+    estado: str,
+    fecha_hora,
+    usuario_id_usuario: int,
+    mesa_id_mesa: int,
+) -> Pedido:
     order = Pedido(
-        tipo=order_data.tipo,
-        estado=order_data.estado,
-        fecha_hora=order_data.fecha_hora,
-        usuario_id_usuario=order_data.usuario_id_usuario,
-        mesa_id_mesa=order_data.mesa_id_mesa,
+        tipo=tipo,
+        estado=estado,
+        fecha_hora=fecha_hora,
+        usuario_id_usuario=usuario_id_usuario,
+        mesa_id_mesa=mesa_id_mesa,
     )
 
     db.add(order)
-    db.commit()
-    db.refresh(order)
+    db.flush()
     return order
 
 
@@ -70,7 +92,10 @@ def get_order_details_by_order_id(db: Session, order_id: int) -> list[DetallePed
     return list(db.scalars(stmt).all())
 
 
-def create_order_detail(db: Session, detail_data: OrderDetailCreate) -> DetallePedido:
+def create_order_detail(
+    db: Session,
+    detail_data: OrderDetailCreate,
+) -> DetallePedido:
     detail = DetallePedido(
         cantidad=detail_data.cantidad,
         precio=detail_data.precio,
@@ -79,6 +104,5 @@ def create_order_detail(db: Session, detail_data: OrderDetailCreate) -> DetalleP
     )
 
     db.add(detail)
-    db.commit()
-    db.refresh(detail)
+    db.flush()
     return detail

@@ -35,6 +35,18 @@ def get_reservation_by_id(db: Session, reservation_id: int) -> Reserva | None:
     return db.scalar(stmt)
 
 
+def get_active_reservation_by_user_id(db: Session, user_id: int) -> Reserva | None:
+    stmt = (
+        select(Reserva)
+        .where(
+            Reserva.usuario_id_usuario == user_id,
+            Reserva.estado == "Reservado",
+        )
+        .order_by(Reserva.fecha_hora.desc())
+    )
+    return db.scalar(stmt)
+
+
 def get_reservations(
     db: Session,
     skip: int = 0,

@@ -1,6 +1,22 @@
+# app/modules/orders/schemas.py
+
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class OrderProductInput(BaseModel):
+    id_producto: int
+    cantidad: int = Field(..., ge=1)
+
+
+class OrderCreate(BaseModel):
+    productos: list[OrderProductInput] = Field(default_factory=list)
+
+
+class OrderCheckoutResponse(BaseModel):
+    message: str
+    id_pedido: int
 
 
 class OrderBase(BaseModel):
@@ -9,10 +25,6 @@ class OrderBase(BaseModel):
     fecha_hora: datetime
     usuario_id_usuario: int
     mesa_id_mesa: int
-
-
-class OrderCreate(OrderBase):
-    pass
 
 
 class OrderUpdate(BaseModel):

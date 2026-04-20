@@ -1,3 +1,5 @@
+# app/modules/reservations/router.py
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -18,6 +20,7 @@ from app.modules.reservations.service import (
     create_reservation,
     create_reservation_checkout,
     create_reservation_detail,
+    get_active_reservation_for_user,
     get_reservation_by_id,
     get_reservation_by_id_admin,
     get_reservation_detail_by_id,
@@ -29,6 +32,22 @@ from app.modules.reservations.service import (
 )
 
 router = APIRouter(prefix="/reservations", tags=["Reservations"])
+
+
+@router.get("/active", response_model=ReservationRead)
+def read_active_reservation(
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    reservation = get_active_reservation_for_user(db, current_user.id_usuario)
+
+    if not reservation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No tienes una reserva activa.",
+        )
+
+    return reservation
 
 
 @router.get("/", response_model=list[ReservationRead])

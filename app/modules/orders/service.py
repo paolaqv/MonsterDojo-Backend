@@ -1,3 +1,7 @@
+# app/modules/orders/service.py
+
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
 from app.modules.orders import repository
@@ -13,16 +17,40 @@ def get_orders(db: Session, skip: int = 0, limit: int = 100) -> list[Pedido]:
     return repository.get_orders(db, skip=skip, limit=limit)
 
 
-def create_order(db: Session, order_data: OrderCreate) -> Pedido:
-    user = repository.get_user_by_id(db, order_data.usuario_id_usuario)
-    if not user:
-        raise ValueError("El usuario no existe.")
+def create_order(db: Session, order_data: OrderCreate, current_user) -> Pedido:
+    reserva_activa = repository.get_active_reservation_by_user_id(db, current_user.id_usuario)
+    if not reserva_activa:
+        raise ValueError("No tienes una reserva activa.")
 
-    table = repository.get_table_by_id(db, order_data.mesa_id_mesa)
-    if not table:
-        raise ValueError("La mesa no existe.")
+    try:
+        order = repository.create_order(
+            db,
+            tipo="Pedido",
+            estado="Pendiente",
+            fecha_hora=datetime.utcnow(),
+            usuario_id_usuario=current_user.id_usuario,
+            mesa_id_mesa=reserva_activa.mesa_id_mesa,
+        )
 
-    return repository.create_order(db, order_data)
+        for item in order_data.productos:
+            product = repository.get_product_by_id(db, item.id_producto)
+            if not product:
+                raise ValueError(f"No existe el producto con id {item.id_producto}.")
+
+            detail = OrderDetailCreate(
+                cantidad=item.cantidad,
+                precio=product.precio,
+                producto_id_producto=item.id_producto,
+                pedido_id_pedido=order.id_pedido,
+            )
+            repository.create_order_detail(db, detail)
+
+        db.commit()
+        db.refresh(order)
+        return order
+    except Exception:
+        db.rollback()
+        raise
 
 
 def update_order(db: Session, order_id: int, order_data: OrderUpdate) -> Pedido:
@@ -64,4 +92,7 @@ def create_order_detail(db: Session, detail_data: OrderDetailCreate) -> DetalleP
     if not product:
         raise ValueError("El producto no existe.")
 
-    return repository.create_order_detail(db, detail_data)
+    detail = repository.create_order_detail(db, detail_data)
+    db.commit()
+    db.refresh(detail)
+    return detail

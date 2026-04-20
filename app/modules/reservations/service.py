@@ -1,3 +1,5 @@
+# app/modules/reservations/service.py
+
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -21,6 +23,10 @@ def get_reservation_by_id(db: Session, reservation_id: int) -> Reserva | None:
 
 def get_reservation_by_id_admin(db: Session, reservation_id: int) -> Reserva | None:
     return repository.get_reservation_by_id(db, reservation_id)
+
+
+def get_active_reservation_for_user(db: Session, user_id: int) -> Reserva | None:
+    return repository.get_active_reservation_by_user_id(db, user_id)
 
 
 def get_reservations(

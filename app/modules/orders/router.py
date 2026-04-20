@@ -1,7 +1,10 @@
+# app/modules/orders/router.py
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.modules.auth.dependencies import get_current_user
 from app.modules.orders.schemas import (
     OrderCreate,
     OrderDetailCreate,
@@ -18,7 +21,7 @@ from app.modules.orders.service import (
     get_orders,
     update_order,
 )
-
+from app.modules.users.model import Usuario
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
@@ -46,9 +49,13 @@ def read_order(order_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=OrderRead, status_code=status.HTTP_201_CREATED)
-def create_new_order(payload: OrderCreate, db: Session = Depends(get_db)):
+def create_new_order(
+    payload: OrderCreate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
     try:
-        return create_order(db, payload)
+        return create_order(db, payload, current_user)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
