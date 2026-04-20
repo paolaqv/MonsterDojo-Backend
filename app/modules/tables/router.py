@@ -8,6 +8,8 @@ from app.modules.auth.dependencies import get_current_user
 from app.modules.users.model import Usuario
 from app.modules.tables.schemas import AvailableTableResponse
 from app.modules.tables.service import get_available_tables
+from app.modules.tables.service import unarchive_table
+from app.modules.tables.service import archive_table
 
 router = APIRouter(prefix="/tables", tags=["Tables"])
 
@@ -72,5 +74,26 @@ def read_available_tables(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+@router.put("/{table_id}/archive", response_model=TableRead)
+def archive_existing_table(table_id: int, db: Session = Depends(get_db)):
+    try:
+        return archive_table(db, table_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+@router.put("/{table_id}/unarchive", response_model=TableRead)
+def unarchive_existing_table(table_id: int, db: Session = Depends(get_db)):
+    try:
+        return unarchive_table(db, table_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )

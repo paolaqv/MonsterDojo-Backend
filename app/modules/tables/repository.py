@@ -38,3 +38,18 @@ def update_table(db: Session, table: Mesa, table_data: TableUpdate) -> Mesa:
     db.commit()
     db.refresh(table)
     return table
+
+def archive_table(db: Session, mesa: Mesa) -> Mesa:
+    mesa.activo = False
+    db.add(mesa)
+    db.commit()
+    db.refresh(mesa)
+    return mesa
+
+
+def unarchive_table(db: Session, mesa: Mesa) -> Mesa:
+    mesa.activo = True
+    db.add(mesa)
+    db.commit()
+    db.refresh(mesa)
+    return mesa

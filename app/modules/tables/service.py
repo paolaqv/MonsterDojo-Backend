@@ -117,3 +117,18 @@ def get_available_tables(
             })
 
     return mesas_disponibles
+
+def archive_table(db: Session, table_id: int) -> Mesa:
+    mesa = repository.get_table_by_id(db, table_id)
+    if not mesa:
+        raise ValueError("Mesa no encontrada.")
+
+    return repository.archive_table(db, mesa)
+
+
+def unarchive_table(db: Session, table_id: int) -> Mesa:
+    mesa = repository.get_table_by_id(db, table_id)
+    if not mesa:
+        raise ValueError("Mesa no encontrada.")
+
+    return repository.unarchive_table(db, mesa)

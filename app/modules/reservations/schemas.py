@@ -60,3 +60,4 @@ class ReservationCheckoutRequest(BaseModel):
 class ReservationCheckoutResponse(BaseModel):
     message: str
     id_reserva: int
+
