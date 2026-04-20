@@ -22,38 +22,9 @@ def read_tables(
 ):
     return get_tables(db, skip=skip, limit=limit)
 
-
-@router.get("/{table_id}", response_model=TableRead)
-def read_table(table_id: int, db: Session = Depends(get_db)):
-    table = get_table_by_id(db, table_id)
-
-    if not table:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Mesa no encontrada.",
-        )
-
-    return table
-
-
 @router.post("/", response_model=TableRead, status_code=status.HTTP_201_CREATED)
 def create_new_table(payload: TableCreate, db: Session = Depends(get_db)):
     return create_table(db, payload)
-
-
-@router.put("/{table_id}", response_model=TableRead)
-def update_existing_table(
-    table_id: int,
-    payload: TableUpdate,
-    db: Session = Depends(get_db),
-):
-    try:
-        return update_table(db, table_id, payload)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
 
 @router.get("/available", response_model=list[AvailableTableResponse])
 def read_available_tables(
@@ -76,6 +47,36 @@ def read_available_tables(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+
+
+@router.get("/{table_id}", response_model=TableRead)
+def read_table(table_id: int, db: Session = Depends(get_db)):
+    table = get_table_by_id(db, table_id)
+
+    if not table:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Mesa no encontrada.",
+        )
+
+    return table
+
+
+
+@router.put("/{table_id}", response_model=TableRead)
+def update_existing_table(
+    table_id: int,
+    payload: TableUpdate,
+    db: Session = Depends(get_db),
+):
+    try:
+        return update_table(db, table_id, payload)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
 
 @router.put("/{table_id}/archive", response_model=TableRead)
 def archive_existing_table(table_id: int, db: Session = Depends(get_db)):

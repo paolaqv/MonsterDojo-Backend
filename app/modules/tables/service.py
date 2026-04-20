@@ -31,11 +31,12 @@ MAX_RESERVATION_DURATION = timedelta(hours=2, minutes=30)
 
 def get_available_tables(
     db: Session,
-    *,
-    fecha: str,
-    hora_inicio: str,
-    hora_fin: str,
-    usuario_id: int,
+        *,
+        fecha: str,
+        hora_inicio: str,
+        hora_fin: str,
+        usuario_id: int,
+        exclude_reservation_id: int | None = None,
 ):
     try:
         fecha_hora_inicio = datetime.strptime(f"{fecha} {hora_inicio}", "%Y-%m-%d %H:%M")
@@ -59,9 +60,11 @@ def get_available_tables(
     )
 
     for reserva in reservas_usuario:
+        if exclude_reservation_id is not None and reserva.id_reserva == exclude_reservation_id:
+            continue
+
         if reserva.fecha_hora.date() == fecha_hora_inicio.date():
             raise ValueError("Elige otra fecha, ya tienes una reserva en esta fecha.")
-
     mesas = (
         db.query(Mesa)
         .filter((Mesa.activo == True) | (Mesa.activo.is_(None)))

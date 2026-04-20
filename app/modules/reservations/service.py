@@ -215,8 +215,8 @@ def update_reservation_checkout(
         hora_inicio=payload.start_time,
         hora_fin=payload.end_time,
         usuario_id=current_user.id_usuario,
+        exclude_reservation_id=reservation_id,
     )
-
     mesa_info = next(
         (item for item in available_tables if item["mesa"]["id_mesa"] == payload.mesa_id),
         None,

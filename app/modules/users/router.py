@@ -17,7 +17,7 @@ def read_current_user(
     return current_user
 
 
-@router.put("/me", response_model=UserRead)
+@router.put("/me/profile", response_model=UserRead)
 def update_me(
     payload: UserUpdateSelf,
     db: Session = Depends(get_db),
