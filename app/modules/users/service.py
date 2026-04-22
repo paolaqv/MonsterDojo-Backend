@@ -82,3 +82,6 @@ def update_current_user(db, current_user: Usuario, payload):
     db.refresh(current_user)
 
     return current_user
+
+def get_all_users(db):
+    return db.query(Usuario).all()

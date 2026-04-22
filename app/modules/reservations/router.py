@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.modules.auth.dependencies import get_current_user
 from app.modules.users.model import Usuario
-
+from app.modules.auth.permissions import require_roles
 from app.modules.reservations.schemas import (
     ReservationCheckoutRequest,
     ReservationCheckoutResponse,
@@ -64,13 +64,27 @@ def read_reservations(
         user_id=current_user.id_usuario,
     )
 
+@router.get("/admin", response_model=list[ReservationRead])
+def read_reservations_admin(
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_roles("encargadoLocal")),
+):
+    return get_reservations(
+        db,
+        skip=skip,
+        limit=limit,
+        user_id=None,
+    )
 
 @router.get("/admin/{reservation_id}", response_model=ReservationRead)
 def read_reservation_admin(
     reservation_id: int,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
+    _: Usuario = Depends(require_roles("encargadoLocal")),
 ):
+
     reservation = get_reservation_by_id_admin(db, reservation_id)
 
     if not reservation:
@@ -144,7 +158,7 @@ def update_existing_reservation(
 def read_reservation_details_admin(
     reservation_id: int,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
+    _: Usuario = Depends(require_roles("encargadoLocal")),
 ):
     try:
         return get_reservation_details_by_reservation_id_admin(db, reservation_id)

@@ -9,7 +9,7 @@ from app.modules.reservations.router import router as reservations_router
 from app.modules.orders.router import router as orders_router
 from app.modules.game_rentals.router import router as game_rentals_router
 from app.modules.payments.router import router as payments_router
-
+from app.modules.users.security_router import router as security_users_router
 
 api_router = APIRouter()
 
@@ -22,7 +22,7 @@ api_router.include_router(reservations_router)
 api_router.include_router(orders_router)
 api_router.include_router(game_rentals_router)
 api_router.include_router(payments_router)
-
+api_router.include_router(security_users_router)
 
 @api_router.get("/health", tags=["Health"])
 def health_check():
