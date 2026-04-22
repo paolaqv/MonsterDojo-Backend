@@ -4,6 +4,7 @@ from app.core.security import get_password_hash
 from app.modules.users import repository
 from app.modules.users.model import Usuario
 from app.modules.users.schemas import UserCreate, UserUpdate
+from app.modules.security.roles.model import RolPermiso
 
 
 def get_user_by_id(db: Session, user_id: int) -> Usuario | None:
@@ -85,3 +86,48 @@ def update_current_user(db, current_user: Usuario, payload):
 
 def get_all_users(db):
     return db.query(Usuario).all()
+
+
+
+def get_user_permissions(db: Session, user_id: int) -> list[str]:
+    user = repository.get_user_by_id(db, user_id)
+    if not user:
+        raise ValueError("Usuario no encontrado.")
+
+    permisos = (
+        db.query(RolPermiso.permiso_id_permiso)
+        .filter(RolPermiso.rol_id_rol == user.rol_id_rol)
+        .all()
+    )
+
+    return [p.permiso_id_permiso for p in permisos]
+
+
+def update_user_role(db: Session, user_id: int, rol_id_rol: str) -> Usuario:
+    user = repository.get_user_by_id(db, user_id)
+    if not user:
+        raise ValueError("Usuario no encontrado.")
+
+    role = repository.get_role_by_id(db, rol_id_rol)
+    if not role:
+        raise ValueError("El rol especificado no existe.")
+
+    user.rol_id_rol = rol_id_rol
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def update_user_status(db: Session, user_id: int, activo: bool) -> Usuario:
+    user = repository.get_user_by_id(db, user_id)
+    if not user:
+        raise ValueError("Usuario no encontrado.")
+
+    user.activo = activo
+    user.is_active = activo
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user

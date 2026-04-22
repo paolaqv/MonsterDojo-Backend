@@ -46,3 +46,16 @@ class UserUpdateSelf(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=50)
     correo: EmailStr
     telefono: int | None = None
+
+
+
+class UserRoleUpdate(BaseModel):
+    rol_id_rol: str = Field(..., min_length=1, max_length=50)
+
+
+class UserStatusUpdate(BaseModel):
+    activo: bool
+
+
+class CurrentUserWithPermissionsRead(UserRead):
+    permisos: list[str] = []

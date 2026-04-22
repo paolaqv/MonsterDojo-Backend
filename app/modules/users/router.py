@@ -4,18 +4,23 @@ from app.modules.auth.permissions import require_roles
 from app.db.session import get_db
 from app.modules.auth.dependencies import get_current_user
 from app.modules.users.model import Usuario
-from app.modules.users.schemas import UserRead, UserUpdateSelf
-from app.modules.users.service import update_current_user
+from app.modules.users.schemas import CurrentUserWithPermissionsRead, UserRead, UserUpdateSelf
+from app.modules.users.service import get_user_permissions, update_current_user
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-@router.get("/me", response_model=UserRead)
+@router.get("/me", response_model=CurrentUserWithPermissionsRead)
 def read_current_user(
+    db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
-    return current_user
+    permisos = get_user_permissions(db, current_user.id_usuario)
 
+    return {
+        **current_user.__dict__,
+        "permisos": permisos,
+    }
 
 @router.put("/me/profile", response_model=UserRead)
 def update_me(
