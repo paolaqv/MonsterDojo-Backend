@@ -20,6 +20,7 @@ class Rol(Base):
 
     id_rol: Mapped[str] = mapped_column(String(50), primary_key=True)
     nombre: Mapped[str] = mapped_column(String(50), nullable=False)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     usuarios: Mapped[list["Usuario"]] = relationship(
         "Usuario",
