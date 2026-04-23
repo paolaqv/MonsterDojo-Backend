@@ -21,7 +21,7 @@ class Settings(BaseSettings):
 
     secret_key: str = "change_me_super_secret"
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60
+    access_token_expire_minutes: int = 1400
 
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     trusted_hosts: str = "localhost,127.0.0.1"
