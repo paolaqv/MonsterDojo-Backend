@@ -27,8 +27,16 @@ def create_access_token(subject: str, expires_delta: timedelta | None = None) ->
     )
 
     to_encode = {
-        "sub": subject,
-        "exp": expire,
-    }
+
+   "sub": subject,
+
+   "exp": expire,
+
+   "iat": now,
+
+   "iss": "monsterdojo-api",
+
+   "aud": "monsterdojo-client"
+}
 
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
