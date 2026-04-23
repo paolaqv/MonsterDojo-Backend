@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     db_user: str = "postgres"
     db_password: str = "change_me"
 
-    secret_key: str = "change-this-secret-key-in-env"
+    secret_key: str = str
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 
