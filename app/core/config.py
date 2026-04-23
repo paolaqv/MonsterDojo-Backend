@@ -8,19 +8,24 @@ class Settings(BaseSettings):
     app_name: str = "Monster Dojo API"
     app_version: str = "1.0.0"
     app_env: str = "development"
-    app_debug: bool = True
+    app_debug: bool = False
+    app_docs_enabled: bool = True
 
     api_v1_prefix: str = "/api/v1"
 
-    db_host: str = "localhost"         ##cambiar
-    db_port: int = 5432                #
-    db_name: str = "MonsterDojo"       #
-    db_user: str = "postgres"          #
-    db_password: str = "marceline25"   #
+    db_host: str = "localhost"
+    db_port: int = 5432
+    db_name: str = "MonsterDojo"
+    db_user: str = "postgres"
+    db_password: str = "change_me"
 
-    secret_key: str = "seguridad"
+    secret_key: str = "change-this-secret-key-in-env"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
+
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    trusted_hosts: str = "localhost,127.0.0.1"
+    security_headers_enabled: bool = True
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -36,6 +41,31 @@ class Settings(BaseSettings):
             f"postgresql+psycopg://{self.db_user}:{self.db_password}"
             f"@{self.db_host}:{self.db_port}/{self.db_name}"
         )
+
+    @computed_field
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @computed_field
+    @property
+    def trusted_hosts_list(self) -> list[str]:
+        return [host.strip() for host in self.trusted_hosts.split(",") if host.strip()]
+
+    @computed_field
+    @property
+    def docs_url(self) -> str | None:
+        return "/docs" if self.app_docs_enabled else None
+
+    @computed_field
+    @property
+    def redoc_url(self) -> str | None:
+        return "/redoc" if self.app_docs_enabled else None
+
+    @computed_field
+    @property
+    def openapi_url(self) -> str | None:
+        return f"{self.api_v1_prefix}/openapi.json" if self.app_docs_enabled else None
 
 
 @lru_cache
