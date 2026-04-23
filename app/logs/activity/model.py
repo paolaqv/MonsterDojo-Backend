@@ -1,38 +1,34 @@
-from __future__ import annotations
-
-from datetime import datetime
-from typing import TYPE_CHECKING
-
-from sqlalchemy import DateTime, ForeignKey, Integer
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql import func
 
 from app.db.base import Base
-
-if TYPE_CHECKING:
-    from app.modules.users.model import Usuario
 
 
 class RegistroActividad(Base):
     __tablename__ = "registro_actividad"
 
-    id_registro_actividad: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-    )
-    usuario_id: Mapped[int] = mapped_column(
-        Integer,
-        ForeignKey("usuario.id_usuario"),
-        nullable=False,
-    )
-    fecha_hora: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-        nullable=False,
-    )
+    id = Column(Integer, primary_key=True, index=True)
 
-    usuario: Mapped["Usuario"] = relationship(
-        "Usuario",
-        back_populates="actividades",
-        lazy="selectin",
-    )
+    usuario_id = Column(Integer, nullable=True)
+    rol_id = Column(String(50), nullable=True)
+
+    evento = Column(String(80), nullable=False)
+    modulo = Column(String(50), nullable=False)
+
+    accion = Column(String(30))
+    descripcion = Column(Text)
+
+    ip_origen = Column(String(45))
+    user_agent = Column(Text)
+
+    estado = Column(String(20))
+    severidad = Column(String(20))
+
+    entidad_afectada = Column(String(50))
+    entidad_id = Column(Integer)
+
+    valor_anterior = Column(JSONB)
+    valor_nuevo = Column(JSONB)
+
+    fecha = Column(DateTime(timezone=True), server_default=func.now())
