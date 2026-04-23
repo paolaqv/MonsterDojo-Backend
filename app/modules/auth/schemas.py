@@ -1,6 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from app.modules.users.schemas import UserRead
-
+from app.modules.users.schemas import CurrentUserWithPermissionsRead, UserRead
 
 class LoginRequest(BaseModel):
     correo: EmailStr
@@ -10,8 +9,7 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    user: UserRead
-
+    user: CurrentUserWithPermissionsRead
 
 class RegisterRequest(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=50)

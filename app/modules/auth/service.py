@@ -2,8 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.modules.users.model import Usuario
-from app.modules.users.service import get_user_by_email
-
+from app.modules.users.service import get_user_by_email, get_user_permissions
 
 def _validate_password_length(password: str) -> None:
     if len(password.encode("utf-8")) > 72:
@@ -27,11 +26,15 @@ def authenticate_user(db: Session, email: str, password: str) -> Usuario:
 def login_user(db: Session, email: str, password: str) -> dict:
     user = authenticate_user(db, email, password)
     access_token = create_access_token(subject=str(user.id_usuario))
+    permisos = get_user_permissions(db, user.id_usuario)
 
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user": user,
+        "user": {
+            **user.__dict__,
+            "permisos": permisos,
+        },
     }
 
 
