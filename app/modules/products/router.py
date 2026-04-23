@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.modules.auth.permissions import require_permissions
 from app.modules.products.schemas import (
     ProductCategoryCreate,
     ProductCategoryRead,
@@ -17,7 +18,7 @@ from app.modules.products.service import (
     get_products,
     update_product,
 )
-
+from app.modules.users.model import Usuario
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
@@ -27,6 +28,7 @@ def read_product_categories(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
+    _: Usuario = Depends(require_permissions("ver_productos")),
 ):
     return get_product_categories(db, skip=skip, limit=limit)
 
@@ -39,6 +41,7 @@ def read_product_categories(
 def create_new_product_category(
     payload: ProductCategoryCreate,
     db: Session = Depends(get_db),
+    _: Usuario = Depends(require_permissions("gestionar_productos")),
 ):
     return create_product_category(db, payload)
 
@@ -48,12 +51,17 @@ def read_products(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
+    _: Usuario = Depends(require_permissions("ver_productos")),
 ):
     return get_products(db, skip=skip, limit=limit)
 
 
 @router.get("/{product_id}", response_model=ProductRead)
-def read_product(product_id: int, db: Session = Depends(get_db)):
+def read_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_permissions("ver_productos")),
+):
     product = get_product_by_id(db, product_id)
 
     if not product:
@@ -66,7 +74,11 @@ def read_product(product_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=ProductRead, status_code=status.HTTP_201_CREATED)
-def create_new_product(payload: ProductCreate, db: Session = Depends(get_db)):
+def create_new_product(
+    payload: ProductCreate,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_permissions("gestionar_productos")),
+):
     try:
         return create_product(db, payload)
     except ValueError as e:
@@ -81,6 +93,7 @@ def update_existing_product(
     product_id: int,
     payload: ProductUpdate,
     db: Session = Depends(get_db),
+    _: Usuario = Depends(require_permissions("gestionar_productos")),
 ):
     try:
         return update_product(db, product_id, payload)

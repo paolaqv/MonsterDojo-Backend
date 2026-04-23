@@ -19,7 +19,7 @@ def get_all_roles(db: Session):
         result.append({
             "id_rol": role.id_rol,
             "nombre": role.nombre,
-            "activo": getattr(role, "activo", True),
+            "activo": role.activo,
             "permisos": [p.permiso_id_permiso for p in permisos],
         })
 
@@ -40,7 +40,7 @@ def get_role_by_id(db: Session, role_id: str):
     return {
         "id_rol": role.id_rol,
         "nombre": role.nombre,
-        "activo": getattr(role, "activo", True),
+        "activo": role.activo,
         "permisos": [p.permiso_id_permiso for p in permisos],
     }
 
@@ -53,9 +53,8 @@ def create_role(db: Session, payload):
     role = Rol(
         id_rol=payload.id_rol,
         nombre=payload.nombre,
+        activo=payload.activo,
     )
-    if hasattr(role, "activo"):
-        role.activo = payload.activo
 
     db.add(role)
     db.commit()
@@ -78,7 +77,7 @@ def update_role(db: Session, role_id: str, payload):
     if payload.nombre is not None:
         role.nombre = payload.nombre
 
-    if payload.activo is not None and hasattr(role, "activo"):
+    if payload.activo is not None:
         role.activo = payload.activo
 
     db.commit()

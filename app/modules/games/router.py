@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.modules.auth.permissions import require_permissions
 from app.modules.games.schemas import (
     GameCategoryCreate,
     GameCategoryRead,
@@ -17,7 +18,7 @@ from app.modules.games.service import (
     get_games,
     update_game,
 )
-
+from app.modules.users.model import Usuario
 
 router = APIRouter(prefix="/games", tags=["Games"])
 
@@ -27,6 +28,7 @@ def read_game_categories(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
+    _: Usuario = Depends(require_permissions("ver_juegos")),
 ):
     return get_game_categories(db, skip=skip, limit=limit)
 
@@ -39,6 +41,7 @@ def read_game_categories(
 def create_new_game_category(
     payload: GameCategoryCreate,
     db: Session = Depends(get_db),
+    _: Usuario = Depends(require_permissions("gestionar_juegos")),
 ):
     return create_game_category(db, payload)
 
@@ -48,12 +51,17 @@ def read_games(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
+    _: Usuario = Depends(require_permissions("ver_juegos")),
 ):
     return get_games(db, skip=skip, limit=limit)
 
 
 @router.get("/{game_id}", response_model=GameRead)
-def read_game(game_id: int, db: Session = Depends(get_db)):
+def read_game(
+    game_id: int,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_permissions("ver_juegos")),
+):
     game = get_game_by_id(db, game_id)
 
     if not game:
@@ -66,7 +74,11 @@ def read_game(game_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=GameRead, status_code=status.HTTP_201_CREATED)
-def create_new_game(payload: GameCreate, db: Session = Depends(get_db)):
+def create_new_game(
+    payload: GameCreate,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_permissions("gestionar_juegos")),
+):
     try:
         return create_game(db, payload)
     except ValueError as e:
@@ -81,6 +93,7 @@ def update_existing_game(
     game_id: int,
     payload: GameUpdate,
     db: Session = Depends(get_db),
+    _: Usuario = Depends(require_permissions("gestionar_juegos")),
 ):
     try:
         return update_game(db, game_id, payload)

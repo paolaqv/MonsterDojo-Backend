@@ -1,12 +1,13 @@
-# app/modules/reservations/router.py
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.modules.auth.dependencies import get_current_user
-from app.modules.users.model import Usuario
-from app.modules.auth.permissions import require_roles
+from app.modules.auth.permissions import (
+    require_any_permission,
+    require_roles,
+    user_has_any_permission,
+)
 from app.modules.reservations.schemas import (
     ReservationCheckoutRequest,
     ReservationCheckoutResponse,
@@ -30,6 +31,7 @@ from app.modules.reservations.service import (
     update_reservation,
     update_reservation_checkout,
 )
+from app.modules.users.model import Usuario
 
 router = APIRouter(prefix="/reservations", tags=["Reservations"])
 
@@ -64,6 +66,7 @@ def read_reservations(
         user_id=current_user.id_usuario,
     )
 
+
 @router.get("/admin", response_model=list[ReservationRead])
 def read_reservations_admin(
     skip: int = Query(default=0, ge=0),
@@ -78,13 +81,13 @@ def read_reservations_admin(
         user_id=None,
     )
 
+
 @router.get("/admin/{reservation_id}", response_model=ReservationRead)
 def read_reservation_admin(
     reservation_id: int,
     db: Session = Depends(get_db),
     _: Usuario = Depends(require_roles("encargadoLocal")),
 ):
-
     reservation = get_reservation_by_id_admin(db, reservation_id)
 
     if not reservation:
@@ -120,9 +123,25 @@ def read_reservation(
 
 
 @router.post("/", response_model=ReservationRead, status_code=status.HTTP_201_CREATED)
-def create_new_reservation(payload: ReservationCreate, db: Session = Depends(get_db)):
+def create_new_reservation(
+    payload: ReservationCreate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(
+        require_any_permission("crear_reservas", "gestionar_reservas")
+    ),
+):
     try:
+        can_manage_all = user_has_any_permission(db, current_user, "gestionar_reservas")
+
+        if payload.usuario_id_usuario != current_user.id_usuario and not can_manage_all:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tienes permisos para crear reservas para otro usuario.",
+            )
+
         return create_reservation(db, payload)
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -135,7 +154,33 @@ def update_existing_reservation(
     reservation_id: int,
     payload: ReservationUpdate,
     db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
 ):
+    reservation = get_reservation_by_id(db, reservation_id)
+    if not reservation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reserva no encontrada.",
+        )
+
+    can_manage_all = user_has_any_permission(db, current_user, "gestionar_reservas")
+
+    if not can_manage_all and reservation.usuario_id_usuario != current_user.id_usuario:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para modificar esta reserva.",
+        )
+
+    if (
+        payload.usuario_id_usuario is not None
+        and payload.usuario_id_usuario != reservation.usuario_id_usuario
+        and not can_manage_all
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para reasignar esta reserva.",
+        )
+
     try:
         return update_reservation(db, reservation_id, payload)
     except ValueError as e:
@@ -183,7 +228,14 @@ def read_reservation_details(
             detail="Reserva no encontrada.",
         )
 
-    if reservation.usuario_id_usuario != current_user.id_usuario:
+    can_view_all = user_has_any_permission(
+        db,
+        current_user,
+        "ver_reservas_detalle",
+        "gestionar_reservas",
+    )
+
+    if not can_view_all and reservation.usuario_id_usuario != current_user.id_usuario:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permiso para ver los detalles de esta reserva.",
@@ -199,13 +251,30 @@ def read_reservation_details(
 
 
 @router.get("/details/{detail_id}", response_model=ReservationDetailRead)
-def read_reservation_detail(detail_id: int, db: Session = Depends(get_db)):
+def read_reservation_detail(
+    detail_id: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
     detail = get_reservation_detail_by_id(db, detail_id)
 
     if not detail:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Detalle de reserva no encontrado.",
+        )
+
+    can_view_all = user_has_any_permission(
+        db,
+        current_user,
+        "ver_reservas_detalle",
+        "gestionar_reservas",
+    )
+
+    if not can_view_all and detail.reserva_rel.usuario_id_usuario != current_user.id_usuario:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para ver este detalle de reserva.",
         )
 
     return detail
@@ -219,7 +288,23 @@ def read_reservation_detail(detail_id: int, db: Session = Depends(get_db)):
 def create_new_reservation_detail(
     payload: ReservationDetailCreate,
     db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
 ):
+    reservation = get_reservation_by_id(db, payload.reserva_id_reserva)
+    if not reservation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="La reserva no existe.",
+        )
+
+    can_manage_all = user_has_any_permission(db, current_user, "gestionar_reservas")
+
+    if not can_manage_all and reservation.usuario_id_usuario != current_user.id_usuario:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para agregar detalles a esta reserva.",
+        )
+
     try:
         return create_reservation_detail(db, payload)
     except ValueError as e:
