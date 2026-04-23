@@ -209,4 +209,4 @@ __marimo__/
 core/config.py
 
 alembic.ini
-alembic/**/__pycache__/
+alembic/
