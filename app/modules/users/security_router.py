@@ -1,19 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-
+from pydantic import BaseModel
+from app.modules.auth.schemas import MessageResponse
+from app.modules.security.passwords.service import unlock_user
 from app.db.session import get_db
 
 from app.logs.activity.service import registrar_evento
 
 from app.modules.auth.permissions import require_roles
 from app.modules.users.model import Usuario
-
-from app.modules.users.schemas import (
-    UserRead,
-    UserRoleUpdate,
-    UserStatusUpdate,
-    UserUpdate
-)
+from app.modules.users.schemas import UserRead, UserRoleUpdate, UserStatusUpdate, UserUpdate, UserCreate
 
 from app.modules.users.service import (
     delete_user,
@@ -22,6 +18,7 @@ from app.modules.users.service import (
     update_user,
     update_user_role,
     update_user_status,
+    create_user
 )
 
 
@@ -219,6 +216,36 @@ def delete_security_user(
     except ValueError as e:
 
         raise HTTPException(
-            status_code=404,
-            detail=str(e)
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
         )
+
+@router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+def create_security_user(
+    payload: UserCreate,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_roles("encargadoSeguridad")),
+):
+    try:
+        return create_user(db, payload)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+@router.post("/{user_id}/unlock", response_model=MessageResponse)
+def unlock_security_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_roles("encargadoSeguridad")),
+):
+    user = get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado.",
+        )
+
+    unlock_user(db, user)
+    return {"message": "Usuario desbloqueado correctamente."}

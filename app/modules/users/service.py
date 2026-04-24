@@ -1,6 +1,10 @@
 from sqlalchemy.orm import Session
 
 from app.core.security import get_password_hash
+from app.modules.security.passwords.service import (
+    get_active_password_policy,
+    validate_password_against_policy,
+)
 from app.modules.users import repository
 from app.modules.users.model import Usuario
 from app.modules.users.schemas import UserCreate, UserUpdate
@@ -31,17 +35,21 @@ def create_user(db: Session, user_data: UserCreate) -> Usuario:
     if not role:
         raise ValueError("El rol especificado no existe.")
 
-    if len(user_data.password.encode("utf-8")) > 72:
-        raise ValueError(
-            "La contraseña no puede superar 72 bytes en UTF-8."
-        )
+    policy = get_active_password_policy(db)
+    validate_password_against_policy(user_data.password, policy)
+
     hashed_password = get_password_hash(user_data.password)
 
     normalized_user_data = user_data.model_copy(
         update={"correo": normalized_email}
     )
 
-    return repository.create_user(db, normalized_user_data, hashed_password)
+    return repository.create_user(
+        db,
+        normalized_user_data,
+        hashed_password,
+        policy.dias_expiracion,
+    )
 
 
 def update_user(db: Session, user_id: int, user_data: UserUpdate) -> Usuario:
@@ -73,9 +81,10 @@ def delete_user(db: Session, user_id: int) -> None:
 
     repository.delete_user(db, user)
 
+
 def update_current_user(db, current_user: Usuario, payload):
     current_user.nombre = payload.nombre
-    current_user.correo = payload.correo
+    current_user.correo = payload.correo.strip().lower()
     current_user.telefono = payload.telefono
 
     db.add(current_user)
@@ -84,9 +93,9 @@ def update_current_user(db, current_user: Usuario, payload):
 
     return current_user
 
+
 def get_all_users(db):
     return db.query(Usuario).all()
-
 
 
 def get_user_permissions(db: Session, user_id: int) -> list[str]:

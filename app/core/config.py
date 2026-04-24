@@ -27,6 +27,13 @@ class Settings(BaseSettings):
     trusted_hosts: str = "localhost,127.0.0.1"
     security_headers_enabled: bool = True
 
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str | None = None
+    smtp_use_tls: bool = True
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
