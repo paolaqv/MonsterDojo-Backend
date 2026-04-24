@@ -1,5 +1,8 @@
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
 from app.modules.users.model import Rol, Usuario
 from app.modules.users.schemas import UserCreate, UserUpdate
 
@@ -24,17 +27,30 @@ def get_users(db: Session, skip: int = 0, limit: int = 100) -> list[Usuario]:
     return list(db.scalars(stmt).all())
 
 
-def create_user(db: Session, user_data: UserCreate, hashed_password: str) -> Usuario:
+def create_user(
+    db: Session,
+    user_data: UserCreate,
+    hashed_password: str,
+    dias_expiracion: int,
+) -> Usuario:
+    now = datetime.now(timezone.utc)
+
     user = Usuario(
         nombre=user_data.nombre,
         correo=user_data.correo,
         telefono=user_data.telefono,
         password=hashed_password,
-        pregunta_seguridad=user_data.pregunta_seguridad,
-        respuesta_seguridad=user_data.respuesta_seguridad,
+        pregunta_seguridad=user_data.pregunta_seguridad or 'temporal',
+        respuesta_seguridad=user_data.respuesta_seguridad or 'temporal',
         rol_id_rol=user_data.rol_id_rol,
         is_active=True,
         activo=True,
+        intentos_fallidos=0,
+        bloqueado=False,
+        fecha_bloqueo=None,
+        fecha_ultimo_cambio_password=now,
+        fecha_expiracion_password=now + timedelta(days=dias_expiracion),
+        requiere_cambio_password=False,
     )
 
     db.add(user)
