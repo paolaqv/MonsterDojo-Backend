@@ -15,8 +15,8 @@ class UserCreate(BaseModel):
     correo: EmailStr
     telefono: int | None = None
     password: str = Field(..., min_length=6, max_length=256)
-    pregunta_seguridad: str = Field(..., min_length=1, max_length=255)
-    respuesta_seguridad: str = Field(..., min_length=1, max_length=255)
+    pregunta_seguridad: str | None = None
+    respuesta_seguridad: str | None = None
     rol_id_rol: str = Field(..., min_length=1, max_length=50)
 
 
@@ -33,6 +33,9 @@ class UserUpdate(BaseModel):
 
 class UserRead(UserBase):
     id_usuario: int
+    intentos_fallidos: int | None = 0
+    bloqueado: bool | None = False
+    requiere_cambio_password: bool | None = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -42,11 +45,11 @@ class UserWithSecurityRead(UserRead):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class UserUpdateSelf(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=50)
     correo: EmailStr
     telefono: int | None = None
-
 
 
 class UserRoleUpdate(BaseModel):
