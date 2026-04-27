@@ -1,0 +1,217 @@
+.
+|-- README.md
+|-- alembic
+|   |-- README
+|   |-- __pycache__
+|   |   `-- env.cpython-312.pyc
+|   |-- env.py
+|   |-- script.py.mako
+|   `-- versions
+|       |-- 0fa97c48f514_init.py
+|       `-- __pycache__
+|           |-- 0fa97c48f514_init.cpython-312.pyc
+|           `-- dacfe7810d47_add_audit_logging_for_owasp_a09.cpython-312.pyc
+|-- alembic.ini
+|-- app
+|   |-- __init__.py
+|   |-- __pycache__
+|   |   |-- __init__.cpython-312.pyc
+|   |   `-- main.cpython-312.pyc
+|   |-- api
+|   |   |-- __init__.py
+|   |   |-- __pycache__
+|   |   |   |-- __init__.cpython-312.pyc
+|   |   |   `-- router.cpython-312.pyc
+|   |   `-- router.py
+|   |-- core
+|   |   |-- __init__.py
+|   |   |-- __pycache__
+|   |   |   |-- __init__.cpython-312.pyc
+|   |   |   |-- config.cpython-312.pyc
+|   |   |   `-- security.cpython-312.pyc
+|   |   |-- config.py
+|   |   |-- constants.py
+|   |   `-- security.py
+|   |-- db
+|   |   |-- __init__.py
+|   |   |-- __pycache__
+|   |   |   |-- __init__.cpython-312.pyc
+|   |   |   |-- base.cpython-312.pyc
+|   |   |   `-- session.cpython-312.pyc
+|   |   |-- base.py
+|   |   |-- init_db.py
+|   |   `-- session.py
+|   |-- logs
+|   |   |-- __init__.py
+|   |   |-- __pycache__
+|   |   |   `-- __init__.cpython-312.pyc
+|   |   |-- activity
+|   |   |   |-- __init__.py
+|   |   |   |-- __pycache__
+|   |   |   |   |-- __init__.cpython-312.pyc
+|   |   |   |   |-- model.cpython-312.pyc
+|   |   |   |   |-- repository.cpython-312.pyc
+|   |   |   |   |-- router.cpython-312.pyc
+|   |   |   |   |-- schemas.cpython-312.pyc
+|   |   |   |   `-- service.cpython-312.pyc
+|   |   |   |-- model.py
+|   |   |   |-- repository.py
+|   |   |   |-- router.py
+|   |   |   |-- schemas.py
+|   |   |   `-- service.py
+|   |   `-- router.py
+|   |-- main.py
+|   |-- modules
+|   |   |-- auth
+|   |   |   |-- __init__.py
+|   |   |   |-- __pycache__
+|   |   |   |   |-- __init__.cpython-312.pyc
+|   |   |   |   |-- dependencies.cpython-312.pyc
+|   |   |   |   |-- permissions.cpython-312.pyc
+|   |   |   |   |-- router.cpython-312.pyc
+|   |   |   |   |-- schemas.cpython-312.pyc
+|   |   |   |   `-- service.cpython-312.pyc
+|   |   |   |-- dependencies.py
+|   |   |   |-- permissions.py
+|   |   |   |-- repository.py
+|   |   |   |-- router.py
+|   |   |   |-- schemas.py
+|   |   |   `-- service.py
+|   |   |-- game_rentals
+|   |   |   |-- __init__.py
+|   |   |   |-- __pycache__
+|   |   |   |   |-- __init__.cpython-312.pyc
+|   |   |   |   |-- model.cpython-312.pyc
+|   |   |   |   |-- repository.cpython-312.pyc
+|   |   |   |   |-- router.cpython-312.pyc
+|   |   |   |   |-- schemas.cpython-312.pyc
+|   |   |   |   `-- service.cpython-312.pyc
+|   |   |   |-- model.py
+|   |   |   |-- repository.py
+|   |   |   |-- router.py
+|   |   |   |-- schemas.py
+|   |   |   `-- service.py
+|   |   |-- games
+|   |   |   |-- __init__.py
+|   |   |   |-- __pycache__
+|   |   |   |   |-- __init__.cpython-312.pyc
+|   |   |   |   |-- model.cpython-312.pyc
+|   |   |   |   |-- repository.cpython-312.pyc
+|   |   |   |   |-- router.cpython-312.pyc
+|   |   |   |   |-- schemas.cpython-312.pyc
+|   |   |   |   `-- service.cpython-312.pyc
+|   |   |   |-- model.py
+|   |   |   |-- repository.py
+|   |   |   |-- router.py
+|   |   |   |-- schemas.py
+|   |   |   `-- service.py
+|   |   |-- orders
+|   |   |   |-- __init__.py
+|   |   |   |-- __pycache__
+|   |   |   |   |-- __init__.cpython-312.pyc
+|   |   |   |   |-- model.cpython-312.pyc
+|   |   |   |   |-- repository.cpython-312.pyc
+|   |   |   |   |-- router.cpython-312.pyc
+|   |   |   |   |-- schemas.cpython-312.pyc
+|   |   |   |   `-- service.cpython-312.pyc
+|   |   |   |-- model.py
+|   |   |   |-- repository.py
+|   |   |   |-- router.py
+|   |   |   |-- schemas.py
+|   |   |   `-- service.py
+|   |   |-- payments
+|   |   |   |-- __init__.py
+|   |   |   |-- __pycache__
+|   |   |   |   |-- __init__.cpython-312.pyc
+|   |   |   |   |-- model.cpython-312.pyc
+|   |   |   |   |-- repository.cpython-312.pyc
+|   |   |   |   |-- router.cpython-312.pyc
+|   |   |   |   |-- schemas.cpython-312.pyc
+|   |   |   |   `-- service.cpython-312.pyc
+|   |   |   |-- model.py
+|   |   |   |-- repository.py
+|   |   |   |-- router.py
+|   |   |   |-- schemas.py
+|   |   |   `-- service.py
+|   |   |-- products
+|   |   |   |-- __init__.py
+|   |   |   |-- __pycache__
+|   |   |   |   |-- __init__.cpython-312.pyc
+|   |   |   |   |-- model.cpython-312.pyc
+|   |   |   |   |-- repository.cpython-312.pyc
+|   |   |   |   |-- router.cpython-312.pyc
+|   |   |   |   |-- schemas.cpython-312.pyc
+|   |   |   |   `-- service.cpython-312.pyc
+|   |   |   |-- model.py
+|   |   |   |-- repository.py
+|   |   |   |-- router.py
+|   |   |   |-- schemas.py
+|   |   |   `-- service.py
+|   |   |-- reservations
+|   |   |   |-- __init__.py
+|   |   |   |-- __pycache__
+|   |   |   |   |-- __init__.cpython-312.pyc
+|   |   |   |   |-- model.cpython-312.pyc
+|   |   |   |   |-- repository.cpython-312.pyc
+|   |   |   |   |-- router.cpython-312.pyc
+|   |   |   |   |-- schemas.cpython-312.pyc
+|   |   |   |   `-- service.cpython-312.pyc
+|   |   |   |-- model.py
+|   |   |   |-- repository.py
+|   |   |   |-- router.py
+|   |   |   |-- schemas.py
+|   |   |   `-- service.py
+|   |   |-- security
+|   |   |   `-- roles
+|   |   |       |-- __pycache__
+|   |   |       |   |-- model.cpython-312.pyc
+|   |   |       |   |-- router.cpython-312.pyc
+|   |   |       |   |-- schemas.cpython-312.pyc
+|   |   |       |   `-- service.cpython-312.pyc
+|   |   |       |-- model.py
+|   |   |       |-- router.py
+|   |   |       |-- schemas.py
+|   |   |       `-- service.py
+|   |   |-- tables
+|   |   |   |-- __init__.py
+|   |   |   |-- __pycache__
+|   |   |   |   |-- __init__.cpython-312.pyc
+|   |   |   |   |-- model.cpython-312.pyc
+|   |   |   |   |-- repository.cpython-312.pyc
+|   |   |   |   |-- router.cpython-312.pyc
+|   |   |   |   |-- schemas.cpython-312.pyc
+|   |   |   |   `-- service.cpython-312.pyc
+|   |   |   |-- model.py
+|   |   |   |-- repository.py
+|   |   |   |-- router.py
+|   |   |   |-- schemas.py
+|   |   |   `-- service.py
+|   |   `-- users
+|   |       |-- __init__.py
+|   |       |-- __pycache__
+|   |       |   |-- __init__.cpython-312.pyc
+|   |       |   |-- model.cpython-312.pyc
+|   |       |   |-- repository.cpython-312.pyc
+|   |       |   |-- router.cpython-312.pyc
+|   |       |   |-- schemas.cpython-312.pyc
+|   |       |   |-- security_router.cpython-312.pyc
+|   |       |   `-- service.cpython-312.pyc
+|   |       |-- model.py
+|   |       |-- repository.py
+|   |       |-- router.py
+|   |       |-- schemas.py
+|   |       |-- security_router.py
+|   |       `-- service.py
+|   `-- shared
+|       |-- __init__.py
+|       |-- exceptions.py
+|       |-- pagination.py
+|       `-- responses.py
+|-- estructura.txt
+|-- requirements.txt
+`-- tests
+    |-- __init__.py
+    |-- conftest.py
+    `-- test_health.py
+
+40 directories, 174 files
