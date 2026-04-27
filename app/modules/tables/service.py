@@ -81,7 +81,7 @@ def get_available_tables(
         )
 
         if hay_solapamiento:
-            raise   ConflictError(
+            raise ConflictError(
             "   Ya tienes una reserva en ese horario."
         )
     mesas = (
