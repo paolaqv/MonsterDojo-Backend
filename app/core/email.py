@@ -1,7 +1,10 @@
+import logging
 import smtplib
 from email.message import EmailMessage
 
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def send_email(to_email: str, subject: str, html_body: str, text_body: str | None = None) -> None:
@@ -21,7 +24,16 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: str | Non
         msg.set_content(text_body)
         msg.add_alternative(html_body, subtype="html")
     else:
-        msg.set_content(html_body, subtype="html")
+        msg.set_content(text_body or "Correo generado por Monster Dojo")
+        msg.add_alternative(html_body, subtype="html")
+
+    logger.info(
+        "SMTP host=%s port=%s from=%s to=%s",
+        settings.smtp_host,
+        settings.smtp_port,
+        settings.smtp_from_email,
+        to_email,
+    )
 
     if settings.smtp_use_tls:
         with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:

@@ -5,7 +5,7 @@ from passlib.context import CryptContext
 from app.core.config import get_settings
 
 pwd_context = CryptContext(
-    schemes=["bcrypt_sha256", "bcrypt"],
+    schemes=["bcrypt"],
     deprecated="auto",
 )
 

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-
+from app.modules.security.passwords.service import get_active_password_policy
+from app.modules.security.passwords.schemas import PasswordPolicyRead
 from app.core.config import get_settings
 from app.db.session import get_db
 
@@ -335,3 +336,14 @@ def password_recovery_reset(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+
+@router.get("/password-policy/public")
+def get_public_password_policy(db: Session = Depends(get_db)):
+    policy = get_active_password_policy(db)
+    return {
+        "longitud_minima": policy.longitud_minima,
+        "requiere_mayusculas": policy.requiere_mayusculas,
+        "requiere_minusculas": policy.requiere_minusculas,
+        "requiere_numeros": policy.requiere_numeros,
+        "requiere_simbolos": policy.requiere_simbolos,
+    }

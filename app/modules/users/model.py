@@ -37,13 +37,18 @@ class Usuario(Base):
     __tablename__ = "usuario"
 
     id_usuario: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
     nombre: Mapped[str] = mapped_column(String(50), nullable=False)
-    correo: Mapped[str] = mapped_column(String(50), nullable=False)
+    primer_apellido: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    segundo_apellido: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    correo: Mapped[str] = mapped_column(String(100), nullable=False)
     telefono: Mapped[int | None] = mapped_column(Integer, nullable=True)
     password: Mapped[str] = mapped_column(String(256), nullable=False)
+
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    pregunta_seguridad: Mapped[str] = mapped_column(String(255), nullable=False)
-    respuesta_seguridad: Mapped[str] = mapped_column(String(255), nullable=False)
+    pregunta_seguridad: Mapped[str] = mapped_column(String(255), nullable=False, default="temporal")
+    respuesta_seguridad: Mapped[str] = mapped_column(String(255), nullable=False, default="temporal")
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     intentos_fallidos: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -96,6 +101,4 @@ class Usuario(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Usuario {self.nombre}>"
-
-
+        return f"<Usuario {self.correo}>"
