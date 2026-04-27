@@ -1,5 +1,6 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from app.shared.validation import ROLE_ID_PATTERN, ensure_plain_text
 from app.modules.users.schemas import CurrentUserWithPermissionsRead, UserRead
 
 
@@ -17,11 +18,22 @@ class TokenResponse(BaseModel):
 class RegisterRequest(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=50)
     correo: EmailStr
-    telefono: int | None = None
+    telefono: int | None = Field(default=None, ge=0, le=999999999999999)
     password: str = Field(..., min_length=6, max_length=256)
     pregunta_seguridad: str = Field(..., min_length=1, max_length=255)
     respuesta_seguridad: str = Field(..., min_length=1, max_length=255)
-    rol_id_rol: str = Field(..., min_length=1, max_length=50)
+    rol_id_rol: str = Field(..., min_length=3, max_length=50, pattern=ROLE_ID_PATTERN)
+
+    @field_validator(
+        "nombre",
+        "pregunta_seguridad",
+        "respuesta_seguridad",
+        "rol_id_rol",
+        mode="before",
+    )
+    @classmethod
+    def validate_register_text(cls, value):
+        return ensure_plain_text(value)
 
 
 class MessageResponse(BaseModel):
@@ -45,11 +57,21 @@ class VerifySecurityAnswerRequest(BaseModel):
     correo: EmailStr
     respuesta_seguridad: str = Field(..., min_length=1, max_length=255)
 
+    @field_validator("respuesta_seguridad", mode="before")
+    @classmethod
+    def validate_security_answer(cls, value):
+        return ensure_plain_text(value)
+
 
 class ResetPasswordRequest(BaseModel):
     correo: EmailStr
     respuesta_seguridad: str = Field(..., min_length=1, max_length=255)
     new_password: str = Field(..., min_length=6, max_length=256)
+
+    @field_validator("respuesta_seguridad", mode="before")
+    @classmethod
+    def validate_reset_answer(cls, value):
+        return ensure_plain_text(value)
 
 
 class ChangeSecurityQuestionRequest(BaseModel):
@@ -57,6 +79,11 @@ class ChangeSecurityQuestionRequest(BaseModel):
     password: str = Field(..., min_length=1, max_length=256)
     nueva_pregunta_seguridad: str = Field(..., min_length=1, max_length=255)
     nueva_respuesta_seguridad: str = Field(..., min_length=1, max_length=255)
+
+    @field_validator("nueva_pregunta_seguridad", "nueva_respuesta_seguridad", mode="before")
+    @classmethod
+    def validate_new_security_fields(cls, value):
+        return ensure_plain_text(value)
 
 
 # =========================================================
@@ -79,10 +106,10 @@ class PasswordRecoveryRequest(BaseModel):
 
 class PasswordRecoveryVerifyRequest(BaseModel):
     correo: EmailStr
-    codigo: str = Field(..., min_length=6, max_length=6)
+    codigo: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
 class PasswordRecoveryResetRequest(BaseModel):
     correo: EmailStr
-    codigo: str = Field(..., min_length=6, max_length=6)
+    codigo: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
     new_password: str = Field(..., min_length=1, max_length=256)

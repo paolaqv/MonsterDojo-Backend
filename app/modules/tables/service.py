@@ -126,6 +126,19 @@ def archive_table(db: Session, table_id: int) -> Mesa:
     if not mesa:
         raise ValueError("Mesa no encontrada.")
 
+    active_reservations = (
+        db.query(Reserva)
+        .filter(
+            Reserva.mesa_id_mesa == table_id,
+            Reserva.estado == "Reservado",
+            Reserva.fecha_hora >= datetime.utcnow(),
+        )
+        .count()
+    )
+
+    if active_reservations:
+        raise ValueError("No se puede archivar una mesa con reservas activas futuras.")
+
     return repository.archive_table(db, mesa)
 
 

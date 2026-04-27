@@ -1,0 +1,396 @@
+IMPLEMENTACION OWASP - Monster Dojo
+Fecha de trabajo: 2026-04-26
+
+Orden aplicado:
+1. A09 - Security Logging and Monitoring Failures
+2. A10 - Mishandling of Exceptional Conditions
+3. A05 - Injection
+4. A04 - Cryptographic Failures
+5. A06 - Insecure Design
+6. A03 - Software Supply Chain Failures
+7. A08 - Software or Data Integrity Failures
+
+============================================================
+A09 - Security Logging and Monitoring Failures
+============================================================
+
+Revision inicial:
+- Existia el modelo RegistroActividad y el servicio registrar_evento(...).
+- El logging ya tenia comportamiento fail-safe con except Exception: pass.
+- Faltaba control de acceso en GET /api/v1/logs.
+- Faltaban filtros backend por severidad, busqueda y eventos criticos.
+- La sanitizacion de secretos era basica y solo revisaba algunos campos de primer nivel.
+
+Implementacion:
+- app/logs/activity/model.py
+  Mantiene la tabla registro_actividad con usuario, rol, evento, modulo, accion,
+  descripcion, IP, user agent, estado, severidad, entidad y valores anterior/nuevo.
+
+- app/logs/activity/service.py
+  registrar_evento(...) sigue siendo fail-safe: si la auditoria falla no rompe el
+  flujo principal.
+  Se agrego sanitizacion recursiva para valor_anterior y valor_nuevo.
+  Se bloquean claves sensibles:
+  password, token, authorization, jwt, respuesta_seguridad, secret_key.
+  Tambien se limpia HTML/script antes de guardar descripciones y metadatos.
+
+- app/logs/activity/repository.py
+  obtener_logs(...) ahora usa SQLAlchemy ORM/select parametrizado.
+  Soporta:
+  severidad
+  search
+  critical_only
+  skip
+  limit
+
+- app/logs/activity/router.py
+  GET /api/v1/logs queda restringido al rol encargadoSeguridad.
+  Expone filtros para visualizar bitacora, filtrar por severidad, buscar eventos
+  y monitorear eventos ALTA/CRITICA.
+
+- Frontend:
+  src/services/activityLogs.service.js usa los filtros del endpoint.
+  src/views/security/AuditPanelView.vue muestra bitacora, filtros, busqueda,
+  contador de eventos altos/criticos y boton de actualizacion.
+  src/router/index.js conserva la ruta exclusiva para encargadoSeguridad.
+
+============================================================
+A10 - Mishandling of Exceptional Conditions
+============================================================
+
+Revision inicial:
+- Existian AppException y error_response.
+- Existia handler para AppException y Exception generico.
+- Las HTTPException de FastAPI y errores de validacion seguian saliendo con
+  formato inconsistente.
+- Algunos endpoints podian devolver detalle interno en errores 500.
+
+Implementacion:
+- app/shared/exceptions.py
+  Se mantienen excepciones controladas:
+  BadRequestError, UnauthorizedError, ForbiddenError, NotFoundError,
+  ConflictError y AppException.
+
+- app/shared/responses.py
+  Mantiene el formato estandar:
+  {
+    "success": false,
+    "error": {
+      "code": "...",
+      "message": "..."
+    }
+  }
+
+- app/main.py
+  Se agrego handler global para HTTPException.
+  Se agrego handler global para RequestValidationError con codigo BAD_REQUEST.
+  Se conserva handler generico para Exception con mensaje seguro:
+  "Error inesperado del sistema".
+  Para status >= 500 se oculta el detalle real y no se exponen stack traces.
+
+- Frontend:
+  src/services/api.js centraliza lectura de error.error.message y detail legacy.
+  src/components/common/ErrorView.vue diferencia:
+  401 sesion expirada
+  403 acceso denegado
+  404 recurso inexistente
+  500 inesperado
+
+============================================================
+A05 - Injection
+============================================================
+
+Objetivo:
+- Validar entradas del backend.
+- Limitar tamanos y formatos.
+- Evitar concatenacion insegura en consultas.
+- Sanear contenido libre que luego se renderiza.
+
+Implementacion backend:
+- app/shared/validation.py
+  Nuevo modulo comun con:
+  ensure_plain_text(...)
+  sanitize_plain_text(...)
+  patrones para IDs de rol/permisos, fecha y hora.
+  Bloquea HTML/script, javascript:, data:text/html y atributos on*.
+
+- app/modules/orders/schemas.py
+  IDs con ge=1.
+  cantidades con limite.
+  estado como enum: Pendiente, En Progreso, Finalizado, Cancelado.
+  tipo como enum: Pedido.
+
+- app/modules/reservations/schemas.py
+  IDs con ge=1.
+  estado como enum: Reservado, Cancelado, Finalizado.
+  date con patron YYYY-MM-DD.
+  start_time/end_time con patron HH:MM.
+  Validacion de que hora fin sea mayor que hora inicio.
+
+- app/modules/products/schemas.py
+  nombre, descripcion, imagen y categoria con limites.
+  Bloqueo de HTML/script.
+  precio y max_personas con rangos.
+
+- app/modules/games/schemas.py
+  nombre, descripcion, imagen y categoria con limites.
+  Bloqueo de HTML/script.
+  precios con rangos.
+
+- app/modules/tables/schemas.py
+  capacidad con rango.
+  ubicacion sin HTML/script.
+
+- app/modules/users/schemas.py
+  rol_id_rol con patron seguro.
+  telefono con rango.
+  nombre, pregunta/respuesta y rol sin HTML/script.
+
+- app/modules/auth/schemas.py
+  inputs de registro y recuperacion con limites.
+  codigo de recuperacion con patron de 6 digitos.
+  rol_id_rol con patron seguro.
+
+- app/modules/security/roles/schemas.py
+  id_rol e id_permiso con patrones seguros.
+  permisos como lista limitada.
+
+- app/modules/*/repository.py
+  Se reviso el acceso a DB: se usa SQLAlchemy ORM/select/query. No se encontro
+  concatenacion SQL insegura en los modulos revisados.
+
+Implementacion frontend:
+- src/utils/inputSanitizer.js
+  Sanitiza payloads antes de enviarlos al backend.
+  No modifica campos sensibles como password, token o codigo.
+
+- src/services/api.js
+  Aplica sanitizePayload en POST, PUT y PATCH.
+
+- src/views/auth/LoginView.vue y src/views/auth/RegisterView.vue
+  Se agregaron limites basicos de longitud y tipos HTML nativos.
+
+============================================================
+A04 - Cryptographic Failures
+============================================================
+
+Revision inicial:
+- El token ya incluia sub, exp, iat, iss y aud.
+- Faltaba validar issuer/audience al decodificar.
+- SECRET_KEY seguia teniendo valor por defecto en config.
+- localStorage persistia mas datos de usuario de los necesarios.
+
+Implementacion:
+- app/core/config.py
+  SECRET_KEY ya no tiene default hardcodeado.
+  Se agregaron JWT_ISSUER y JWT_AUDIENCE.
+  En produccion se rechaza SECRET_KEY con valor por defecto.
+
+- .env.example
+  Se documento la configuracion segura esperada, incluyendo SECRET_KEY,
+  JWT_ISSUER y JWT_AUDIENCE.
+
+- app/core/security.py
+  create_access_token usa settings.jwt_issuer y settings.jwt_audience.
+
+- app/modules/auth/dependencies.py
+  jwt.decode valida algoritmo explicito, issuer y audience.
+
+- app/logs/activity/service.py
+  Se evita registrar secretos en logs y payloads JSON.
+
+- Frontend:
+  src/stores/auth.js persiste en localStorage solo:
+  id_usuario, nombre, rol_id_rol.
+  Los permisos quedan en memoria y se refrescan desde /users/me cuando hacen falta.
+  src/services/auth.service.js deja de guardar el usuario completo.
+
+============================================================
+A06 - Insecure Design
+============================================================
+
+Objetivo:
+- Cerrar flujos ambiguos.
+- Separar funciones sensibles.
+- Documentar roles.
+- Evitar depender solo de ocultar botones en frontend.
+
+Implementacion:
+- app/modules/auth/permissions.py
+  Se agrego ROLE_ACCESS_MATRIX para documentar capacidades por rol:
+  cliente, mesero, encargadoLocal, encargadoSeguridad.
+  Se agrego MODULE_ACTION_PERMISSIONS como mapa de acciones a permisos.
+
+- Backend manda, frontend acompana:
+  Los routers siguen validando roles/permisos con require_roles,
+  require_permissions o require_any_permission.
+  El frontend conserva guards por UX, pero no es el control principal.
+
+- app/logs/activity/router.py
+  La auditoria queda exclusivamente para encargadoSeguridad.
+
+- app/modules/users/security_router.py
+  Se bloquea que un encargadoSeguridad se cambie su propio rol, se desactive
+  o se elimine desde el flujo administrativo.
+
+- app/modules/security/roles/service.py
+  Se valida que los permisos asignados a roles existan.
+  Se impide eliminar roles que aun estan asignados a usuarios.
+
+============================================================
+A03 - Software Supply Chain Failures
+============================================================
+
+Implementacion backend:
+- requirements.txt
+  Se fijaron versiones exactas.
+  Se actualizaron paquetes vulnerables detectados por pip-audit:
+  fastapi, starlette, python-jose y python-multipart.
+
+- Verificacion:
+  python -m pip_audit -r requirements.txt
+  Resultado: No known vulnerabilities found.
+
+  python -m pip check
+  Resultado: No broken requirements found.
+
+Implementacion frontend:
+- package.json
+  Se fijaron versiones exactas.
+  Se elimino vue-final-modal porque no se usaba.
+  Se elimino vite-plugin-vue-devtools porque era opcional y generaba conflicto
+  de peer dependency con Vite 8.
+
+- package-lock.json
+  Se actualizo con npm install --package-lock-only.
+
+- Verificacion:
+  npm audit --audit-level=high
+  Resultado: found 0 vulnerabilities.
+
+Politica minima:
+- Antes de entrega ejecutar:
+  Backend: python -m pip_audit -r requirements.txt
+  Backend: python -m pip check
+  Frontend: npm audit --audit-level=high
+  Frontend: npm install ci cuando se haga build limpio
+- No agregar dependencias sin justificar uso en codigo.
+- Fijar versiones en requirements.txt y package.json.
+
+============================================================
+A08 - Software or Data Integrity Failures
+============================================================
+
+Objetivo:
+- Registrar cambios criticos.
+- Validar integridad logica antes de guardar.
+- Controlar operaciones administrativas sensibles.
+
+Implementacion:
+- app/modules/orders/service.py
+  Se definieron transiciones validas:
+  Pendiente -> En Progreso, Cancelado
+  En Progreso -> Finalizado, Cancelado
+  Finalizado -> sin transiciones
+  Cancelado -> sin transiciones
+
+- app/modules/orders/router.py
+  Cuando cambia el estado de un pedido se registra auditoria con valor anterior
+  y valor nuevo.
+
+- app/modules/reservations/service.py
+  Se definieron transiciones validas:
+  Reservado -> Cancelado, Finalizado
+  Cancelado -> sin transiciones
+  Finalizado -> sin transiciones
+  El checkout de actualizacion solo permite modificar reservas activas.
+
+- app/modules/reservations/router.py
+  Cuando cambia el estado o la mesa de una reserva se registra auditoria con
+  valor anterior y valor nuevo.
+
+- app/modules/tables/service.py
+  No se permite archivar una mesa con reservas activas futuras.
+
+- app/modules/tables/router.py
+  Archivar/reactivar mesa genera auditoria.
+
+- app/modules/users/security_router.py
+  Crear, editar, cambiar rol, cambiar estado, desbloquear y eliminar usuarios
+  queda auditado con actor, rol, entidad y valores relevantes.
+
+- app/modules/security/roles/router.py
+  Crear, editar y eliminar roles queda auditado con actor, rol y valores
+  anterior/nuevo.
+
+============================================================
+Verificacion tecnica realizada
+============================================================
+
+Backend:
+- python -m compileall app -> OK.
+- python -c "from app.main import app; print(len(app.routes))" -> OK, 83 rutas.
+- python -m pip_audit -r requirements.txt -> OK, sin vulnerabilidades conocidas.
+- python -m pip check -> OK.
+- python -m pytest -q no pudo ejecutarse porque pytest no esta instalado.
+- TestClient no pudo ejecutarse porque httpx no esta instalado.
+
+Frontend:
+- npm install --package-lock-only -> OK.
+- npm audit --audit-level=high -> OK, 0 vulnerabilidades.
+- npm run build intento ejecutarse, pero Node/Vite termino con out of memory
+  durante transforming. No se observo error de sintaxis antes del fallo.
+
+============================================================
+Resumen de modulos revisados o modificados
+============================================================
+
+Backend:
+- app/main.py
+- app/shared/exceptions.py
+- app/shared/responses.py
+- app/shared/validation.py
+- app/core/config.py
+- app/core/security.py
+- app/logs/activity/model.py
+- app/logs/activity/repository.py
+- app/logs/activity/service.py
+- app/logs/activity/router.py
+- app/logs/activity/schemas.py
+- app/logs/router.py
+- app/modules/auth/dependencies.py
+- app/modules/auth/permissions.py
+- app/modules/auth/schemas.py
+- app/modules/orders/router.py
+- app/modules/orders/schemas.py
+- app/modules/orders/service.py
+- app/modules/reservations/router.py
+- app/modules/reservations/schemas.py
+- app/modules/reservations/service.py
+- app/modules/products/schemas.py
+- app/modules/games/schemas.py
+- app/modules/tables/router.py
+- app/modules/tables/schemas.py
+- app/modules/tables/service.py
+- app/modules/users/schemas.py
+- app/modules/users/security_router.py
+- app/modules/security/roles/router.py
+- app/modules/security/roles/schemas.py
+- app/modules/security/roles/service.py
+- requirements.txt
+- .env.example
+
+Frontend:
+- package.json
+- package-lock.json
+- vite.config.js
+- src/services/api.js
+- src/services/auth.service.js
+- src/services/activityLogs.service.js
+- src/stores/auth.js
+- src/router/index.js
+- src/utils/inputSanitizer.js
+- src/components/common/ErrorView.vue
+- src/views/security/AuditPanelView.vue
+- src/views/auth/LoginView.vue
+- src/views/auth/RegisterView.vue

@@ -16,6 +16,12 @@ from app.modules.reservations.schemas import (
 )
 from app.modules.tables.service import get_available_tables
 
+RESERVATION_ALLOWED_TRANSITIONS = {
+    "Reservado": {"Cancelado", "Finalizado"},
+    "Cancelado": set(),
+    "Finalizado": set(),
+}
+
 
 def get_reservation_by_id(db: Session, reservation_id: int) -> Reserva | None:
     return repository.get_reservation_by_id(db, reservation_id)
@@ -58,6 +64,15 @@ def update_reservation(
     reservation = repository.get_reservation_by_id(db, reservation_id)
     if not reservation:
         raise ValueError("Reserva no encontrada.")
+
+    if reservation_data.estado is not None and reservation_data.estado != reservation.estado:
+        allowed_next_states = RESERVATION_ALLOWED_TRANSITIONS.get(reservation.estado, set())
+
+        if reservation_data.estado not in allowed_next_states:
+            raise ValueError(
+                "Transicion de estado de reserva no permitida: "
+                f"{reservation.estado} -> {reservation_data.estado}."
+            )
 
     if reservation_data.usuario_id_usuario is not None:
         user = repository.get_user_by_id(db, reservation_data.usuario_id_usuario)
@@ -208,6 +223,9 @@ def update_reservation_checkout(
 
     if reserva.usuario_id_usuario != current_user.id_usuario:
         raise ValueError("No tienes permiso para modificar esta reserva.")
+
+    if reserva.estado != "Reservado":
+        raise ValueError("Solo se pueden modificar reservas activas.")
 
     available_tables = get_available_tables(
         db,

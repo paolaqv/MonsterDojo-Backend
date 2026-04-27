@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.logs.activity.service import registrar_evento
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.permissions import (
     require_any_permission,
@@ -163,6 +164,9 @@ def update_existing_reservation(
             detail="Reserva no encontrada.",
         )
 
+    old_state = reservation.estado
+    old_table_id = reservation.mesa_id_mesa
+
     can_manage_all = user_has_any_permission(db, current_user, "gestionar_reservas")
 
     if not can_manage_all and reservation.usuario_id_usuario != current_user.id_usuario:
@@ -182,7 +186,41 @@ def update_existing_reservation(
         )
 
     try:
-        return update_reservation(db, reservation_id, payload)
+        updated = update_reservation(db, reservation_id, payload)
+
+        if payload.estado is not None and payload.estado != old_state:
+            registrar_evento(
+                db=db,
+                usuario_id=current_user.id_usuario,
+                rol_id=current_user.rol_id_rol,
+                evento="RESERVA_ESTADO_CAMBIADO",
+                modulo="reservas",
+                accion="UPDATE",
+                estado="OK",
+                severidad="ALTA",
+                entidad_afectada="reserva",
+                entidad_id=reservation_id,
+                valor_anterior={"estado": old_state},
+                valor_nuevo={"estado": payload.estado},
+            )
+
+        if payload.mesa_id_mesa is not None and payload.mesa_id_mesa != old_table_id:
+            registrar_evento(
+                db=db,
+                usuario_id=current_user.id_usuario,
+                rol_id=current_user.rol_id_rol,
+                evento="RESERVA_MESA_CAMBIADA",
+                modulo="reservas",
+                accion="UPDATE",
+                estado="OK",
+                severidad="MEDIA",
+                entidad_afectada="reserva",
+                entidad_id=reservation_id,
+                valor_anterior={"mesa_id_mesa": old_table_id},
+                valor_nuevo={"mesa_id_mesa": payload.mesa_id_mesa},
+            )
+
+        return updated
     except ValueError as e:
         detail = str(e)
         status_code = (
@@ -345,13 +383,34 @@ def update_checkout_reservation(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
+    reservation = get_reservation_by_id(db, reservation_id)
+    old_table_id = reservation.mesa_id_mesa if reservation else None
+
     try:
-        return update_reservation_checkout(
+        result = update_reservation_checkout(
             db,
             reservation_id=reservation_id,
             payload=payload,
             current_user=current_user,
         )
+
+        if old_table_id is not None and old_table_id != payload.mesa_id:
+            registrar_evento(
+                db=db,
+                usuario_id=current_user.id_usuario,
+                rol_id=current_user.rol_id_rol,
+                evento="RESERVA_CHECKOUT_ACTUALIZADA",
+                modulo="reservas",
+                accion="UPDATE",
+                estado="OK",
+                severidad="MEDIA",
+                entidad_afectada="reserva",
+                entidad_id=reservation_id,
+                valor_anterior={"mesa_id_mesa": old_table_id},
+                valor_nuevo={"mesa_id_mesa": payload.mesa_id},
+            )
+
+        return result
     except ValueError as e:
         detail = str(e)
         status_code = (

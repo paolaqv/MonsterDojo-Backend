@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import computed_field
+from pydantic import computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,15 +13,13 @@ class Settings(BaseSettings):
 
     api_v1_prefix: str = "/api/v1"
 
-    db_host: str = "localhost"
-    db_port: int = 5432
-    db_name: str = "MonsterDojo"
-    db_user: str = "postgres"
-    db_password: str = "change_me"
+    database_url: str
 
-    secret_key: str = "change_me_super_secret"
+    secret_key: str = ""
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 1400
+    jwt_issuer: str = "monsterdojo-api"
+    jwt_audience: str = "monsterdojo-client"
 
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     trusted_hosts: str = "localhost,127.0.0.1"
@@ -43,11 +41,12 @@ class Settings(BaseSettings):
 
     @computed_field
     @property
-    def database_url(self) -> str:
-        return (
-            f"postgresql+psycopg://{self.db_user}:{self.db_password}"
-            f"@{self.db_host}:{self.db_port}/{self.db_name}"
-        )
+    def cors_origins_list(self) -> list[str]:
+        return [
+            origin.strip()
+            for origin in self.cors_origins.split(",")
+            if origin.strip()
+        ]
 
     @computed_field
     @property
@@ -73,6 +72,18 @@ class Settings(BaseSettings):
     @property
     def openapi_url(self) -> str | None:
         return f"{self.api_v1_prefix}/openapi.json" if self.app_docs_enabled else None
+
+    @model_validator(mode="after")
+    def validate_security_settings(self) -> "Settings":
+        if not self.secret_key:
+            raise ValueError("SECRET_KEY debe definirse en el archivo .env.")
+
+        if self.app_env.lower() in {"production", "prod"} and self.secret_key.startswith(
+            "change_me"
+        ):
+            raise ValueError("SECRET_KEY no puede usar un valor por defecto en produccion.")
+
+        return self
 
 
 @lru_cache

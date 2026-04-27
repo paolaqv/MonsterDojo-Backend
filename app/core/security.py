@@ -34,8 +34,8 @@ def create_access_token(subject: str, expires_delta: timedelta | None = None) ->
         "sub": subject,
         "exp": expire,
         "iat": now,
-        "iss": "monsterdojo-api",
-        "aud": "monsterdojo-client"
+        "iss": settings.jwt_issuer,
+        "aud": settings.jwt_audience,
     }
 
     return jwt.encode(
