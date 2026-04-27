@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import random
-import string
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select, update
@@ -91,33 +90,67 @@ def validate_password_against_policy(password: str, policy: PoliticaPassword) ->
     if policy.requiere_simbolos and not any(c in especiales for c in password):
         raise ValueError("La contraseña debe incluir al menos un símbolo especial.")
 
+
+def _get_security_window_start(policy: PoliticaPassword) -> datetime:
+    """
+    La ventana de control se basa en los días de expiración.
+    Ejemplo:
+    - dias_expiracion = 60
+    - periodo_no_reutilizacion_meses = 6
+    Significa:
+      * en los últimos 60 días no puede reutilizar contraseñas usadas
+      * y como máximo puede cambiar la contraseña 6 veces en esos 60 días
+    """
+    return datetime.now(timezone.utc) - timedelta(days=policy.dias_expiracion)
+
+
+def _get_recent_password_history(
+    db: Session,
+    user: Usuario,
+    policy: PoliticaPassword,
+) -> list[HistorialPassword]:
+    window_start = _get_security_window_start(policy)
+
+    stmt = (
+        select(HistorialPassword)
+        .where(
+            HistorialPassword.usuario_id == user.id_usuario,
+            HistorialPassword.fecha_cambio >= window_start,
+        )
+        .order_by(HistorialPassword.fecha_cambio.desc())
+    )
+
+    return list(db.scalars(stmt).all())
+
+
 def validate_password_history(
     db: Session,
     user: Usuario,
     new_password: str,
     policy: PoliticaPassword,
 ) -> None:
-    limite = datetime.now(timezone.utc) - timedelta(days=policy.periodo_no_reutilizacion_meses * 30)
-
-    stmt = (
-        select(HistorialPassword)
-        .where(
-            HistorialPassword.usuario_id == user.id_usuario,
-            HistorialPassword.fecha_cambio >= limite,
-        )
-        .order_by(HistorialPassword.fecha_cambio.desc())
-    )
-
-    history = list(db.scalars(stmt).all())
-
-    for item in history:
-        if verify_password(new_password, item.password_hash):
-            raise ValueError(
-                "No puedes reutilizar una contraseña usada dentro del periodo de no reutilización configurado."
-            )
-
+    # 1. No puede ser igual a la contraseña actual
     if verify_password(new_password, user.password):
         raise ValueError("La nueva contraseña no puede ser igual a la contraseña actual.")
+
+    # 2. Recupera historial dentro de la vigencia actual
+    recent_history = _get_recent_password_history(db, user, policy)
+
+    # 3. No puede reutilizar ninguna contraseña usada dentro de la vigencia actual
+    for item in recent_history:
+        if verify_password(new_password, item.password_hash):
+            raise ValueError(
+                "No puedes reutilizar una contraseña usada dentro del periodo vigente de seguridad."
+            )
+
+    # 4. No puede exceder el máximo de cambios permitidos dentro de la vigencia actual
+    #    periodo_no_reutilizacion_meses ahora se interpreta como CONTADOR, no como meses.
+    max_changes_allowed = policy.periodo_no_reutilizacion_meses
+
+    if len(recent_history) >= max_changes_allowed:
+        raise ValueError(
+            "Has alcanzado el número máximo de cambios de contraseña permitidos dentro del periodo vigente."
+        )
 
 
 def register_password_history(db: Session, user: Usuario) -> None:
@@ -132,9 +165,13 @@ def register_password_history(db: Session, user: Usuario) -> None:
 def apply_new_password(db: Session, user: Usuario, new_password: str) -> Usuario:
     policy = get_active_password_policy(db)
 
+    # Valida complejidad
     validate_password_against_policy(new_password, policy)
+
+    # Valida reutilización y contador de cambios dentro de la vigencia
     validate_password_history(db, user, new_password, policy)
 
+    # Guarda la contraseña actual en historial antes de reemplazarla
     register_password_history(db, user)
 
     now = datetime.now(timezone.utc)
