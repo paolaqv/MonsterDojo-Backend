@@ -1,5 +1,8 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from app.shared.validation import ensure_plain_text, ROLE_ID_PATTERN
 class UserBase(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=50)
     primer_apellido: str | None = Field(default=None, max_length=50)

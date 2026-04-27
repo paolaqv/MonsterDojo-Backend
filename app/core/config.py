@@ -50,11 +50,6 @@ class Settings(BaseSettings):
 
     @computed_field
     @property
-    def cors_origins_list(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
-
-    @computed_field
-    @property
     def trusted_hosts_list(self) -> list[str]:
         return [host.strip() for host in self.trusted_hosts.split(",") if host.strip()]
 
