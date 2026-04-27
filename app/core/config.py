@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     secret_key: str = ""
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 1400
+    access_token_expire_minutes: int = 60
     jwt_issuer: str = "monsterdojo-api"
     jwt_audience: str = "monsterdojo-client"
 

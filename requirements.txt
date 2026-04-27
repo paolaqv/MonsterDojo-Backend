@@ -16,3 +16,16 @@ python-multipart==0.0.26
 email-validator==2.3.0
 
 gunicorn==23.0.0
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg[binary]
+pydantic
+pydantic-settings
+python-dotenv
+alembic
+python-jose[cryptography]
+passlib==1.7.4
+bcrypt==3.2.2
+python-multipart
+email-validator

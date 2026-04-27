@@ -21,13 +21,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
-
     now = datetime.now(timezone.utc)
 
     expire = now + (
-        expires_delta or timedelta(
-            minutes=settings.access_token_expire_minutes
-        )
+        expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
     )
 
     to_encode = {
@@ -38,8 +35,4 @@ def create_access_token(subject: str, expires_delta: timedelta | None = None) ->
         "aud": settings.jwt_audience,
     }
 
-    return jwt.encode(
-        to_encode,
-        settings.secret_key,
-        algorithm=settings.algorithm
-    )
+    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
