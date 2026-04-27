@@ -1,6 +1,5 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
 
 from app.shared.validation import ensure_plain_text, ROLE_ID_PATTERN
 class UserBase(BaseModel):
@@ -19,18 +18,9 @@ class UserCreate(BaseModel):
     segundo_apellido: str | None = Field(default=None, max_length=50)
     correo: EmailStr | None = None
     telefono: int | None = None
-    password: str = Field(..., min_length=6, max_length=256)
+    password: str = Field(..., min_length=8, max_length=256)
     rol_id_rol: str = Field(..., min_length=1, max_length=50)
     enviar_credenciales: bool | None = False
-
-    @field_validator("correo")
-    @classmethod
-    def validate_gmail_domain(cls, value: str | None) -> str | None:
-        if value is None:
-            return value
-        if not value.lower().endswith("@gmail.com"):
-            raise ValueError("El correo debe pertenecer al dominio @gmail.com.")
-        return value.lower()
 
 
 class UserUpdate(BaseModel):
@@ -42,15 +32,6 @@ class UserUpdate(BaseModel):
     rol_id_rol: str | None = Field(default=None, min_length=1, max_length=50)
     is_active: bool | None = None
     activo: bool | None = None
-
-    @field_validator("correo")
-    @classmethod
-    def validate_gmail_domain(cls, value: str | None) -> str | None:
-        if value is None:
-            return value
-        if not value.lower().endswith("@gmail.com"):
-            raise ValueError("El correo debe pertenecer al dominio @gmail.com.")
-        return value.lower()
 
 
 class UserRead(UserBase):

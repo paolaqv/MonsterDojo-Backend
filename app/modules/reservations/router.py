@@ -372,7 +372,7 @@ def checkout_reservation(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al confirmar la reserva: {str(e)}",
+            detail="Error inesperado del sistema",
         )
 
 
