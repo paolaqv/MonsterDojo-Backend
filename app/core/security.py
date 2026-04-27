@@ -2,9 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from jose import jwt
 from passlib.context import CryptContext
-
 from app.core.config import get_settings
-
 
 pwd_context = CryptContext(
     schemes=["bcrypt"],
@@ -23,13 +21,25 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
-    expire = datetime.now(timezone.utc) + (
-        expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
+
+    now = datetime.now(timezone.utc)
+
+    expire = now + (
+        expires_delta or timedelta(
+            minutes=settings.access_token_expire_minutes
+        )
     )
 
     to_encode = {
         "sub": subject,
         "exp": expire,
+        "iat": now,
+        "iss": "monsterdojo-api",
+        "aud": "monsterdojo-client"
     }
 
-    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+    return jwt.encode(
+        to_encode,
+        settings.secret_key,
+        algorithm=settings.algorithm
+    )

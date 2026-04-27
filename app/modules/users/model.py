@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
+from sqlalchemy.sql import func
 from app.db.base import Base
 
 if TYPE_CHECKING:
