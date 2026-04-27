@@ -1,23 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.modules.auth.schemas import MessageResponse
-from app.modules.security.passwords.service import unlock_user
 from app.db.session import get_db
 
 from app.logs.activity.service import registrar_evento
 
 from app.modules.auth.permissions import require_roles
+from app.modules.auth.schemas import MessageResponse
+from app.modules.security.passwords.service import unlock_user
 from app.modules.users.model import Usuario
-from app.modules.users.schemas import UserRead, UserRoleUpdate, UserStatusUpdate, UserUpdate, UserCreate
-
+from app.modules.users.schemas import UserCreate, UserRead, UserRoleUpdate, UserStatusUpdate, UserUpdate
 from app.modules.users.service import (
+    create_user,
     delete_user,
     get_all_users,
     get_user_by_id,
     update_user,
     update_user_role,
     update_user_status,
-    create_user
 )
 
 
@@ -52,7 +51,22 @@ def read_user(
     return user
 
 
-@router.put("/{user_id}",response_model=UserRead)
+@router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+def create_security_user(
+    payload: UserCreate,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(require_roles("encargadoSeguridad")),
+):
+    try:
+        return create_user(db, payload)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@router.put("/{user_id}", response_model=UserRead)
 def update_security_user(
     user_id:int,
     payload:UserUpdate,
@@ -113,11 +127,8 @@ def update_security_user(
             if detail=="Usuario no encontrado."
             else status.HTTP_400_BAD_REQUEST
         )
+        raise HTTPException(status_code=status_code, detail=detail)
 
-        raise HTTPException(
-            status_code=status_code,
-            detail=detail
-        )
 
 
 @router.put("/{user_id}/role",response_model=UserRead)
@@ -234,7 +245,7 @@ def update_security_user_status(
         )
 
 
-@router.delete("/{user_id}",status_code=200)
+@router.delete("/{user_id}", status_code=status.HTTP_200_OK)
 def delete_security_user(
     user_id:int,
     db:Session=Depends(get_db),
@@ -297,36 +308,22 @@ def delete_security_user(
             detail=str(e),
         )
 
-@router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-def create_security_user(
-    payload: UserCreate,
+
+@router.post("/{user_id}/send-credentials", response_model=MessageResponse)
+def send_credentials_placeholder(
+    user_id: int,
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(require_roles("encargadoSeguridad")),
 ):
-    try:
-        user = create_user(db, payload)
-        registrar_evento(
-            db=db,
-            usuario_id=current_user.id_usuario,
-            rol_id=current_user.rol_id_rol,
-            evento="USUARIO_CREADO_SEGURIDAD",
-            modulo="usuarios",
-            accion="CREATE",
-            estado="OK",
-            severidad="ALTA",
-            entidad_afectada="usuario",
-            entidad_id=user.id_usuario,
-            valor_nuevo={
-                "rol_id_rol": user.rol_id_rol,
-                "activo": user.activo,
-            },
-        )
-        return user
-    except ValueError as e:
+    user = get_user_by_id(db, user_id)
+    if not user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado.",
         )
+
+    return {"message": "La solicitud de envío de credenciales fue registrada."}
+
 
 @router.post("/{user_id}/unlock", response_model=MessageResponse)
 def unlock_security_user(
