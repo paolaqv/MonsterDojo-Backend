@@ -19,21 +19,33 @@ def _validate_password_length(password: str) -> None:
 
 
 def authenticate_user(db: Session, email: str, password: str) -> Usuario:
-    user = get_user_by_email(db, email)
+    normalized_email = email.strip().lower()
+    print("LOGIN EMAIL =>", normalized_email)
+
+    user = get_user_by_email(db, normalized_email)
     policy = get_active_password_policy(db)
 
+    print("USER FOUND =>", user.correo if user else None)
+
     if not user:
+        print("LOGIN FAIL => usuario no encontrado")
         raise ValueError("Credenciales inválidas.")
 
     if not user.is_active or not user.activo:
+        print("LOGIN FAIL => usuario inactivo")
         raise ValueError("El usuario está inactivo.")
 
     if user.bloqueado:
+        print("LOGIN FAIL => usuario bloqueado")
         raise ValueError(
             "Tu cuenta está bloqueada. Debes recuperarla o contactar al encargado de seguridad."
         )
 
-    if not verify_password(password, user.password):
+    password_ok = verify_password(password, user.password)
+    print("PASSWORD MATCH =>", password_ok)
+    print("HASH STORED =>", user.password)
+
+    if not password_ok:
         user.intentos_fallidos += 1
 
         remaining = policy.max_intentos_login - user.intentos_fallidos
@@ -43,16 +55,19 @@ def authenticate_user(db: Session, email: str, password: str) -> Usuario:
             user.fecha_bloqueo = datetime.now(timezone.utc)
             db.add(user)
             db.commit()
+            print("LOGIN FAIL => cuenta bloqueada")
             raise ValueError("Has excedido el número máximo de intentos. Tu cuenta fue bloqueada.")
 
         db.add(user)
         db.commit()
 
         if remaining == 1:
+            print("LOGIN FAIL => queda un intento")
             raise ValueError(
                 "Credenciales incorrectas. Advertencia: te queda 1 intento antes del bloqueo."
             )
 
+        print("LOGIN FAIL => contraseña no coincide")
         raise ValueError("Credenciales inválidas.")
 
     user.intentos_fallidos = 0
@@ -71,7 +86,6 @@ def authenticate_user(db: Session, email: str, password: str) -> Usuario:
 
     return user
 
-
 def login_user(db: Session, email: str, password: str) -> dict:
     user = authenticate_user(db, email, password)
     access_token = create_access_token(subject=str(user.id_usuario))
@@ -88,7 +102,7 @@ def login_user(db: Session, email: str, password: str) -> dict:
 
 
 # =========================================================
-# LEGACY: pregunta/respuesta de seguridad
+# LEGACY: pregunta/respuesta de seguridad (verificacion de 2 pasos sistema antiguo)
 # =========================================================
 
 def get_security_question(db: Session, email: str) -> dict:
@@ -182,59 +196,69 @@ def change_password_required(
 # NUEVO: recuperación segura por código
 # =========================================================
 
-def request_password_recovery(db: Session, email: str, app_debug: bool = False) -> dict:
-    user = get_user_by_email(db, email)
+import logging
 
-    # Mensaje genérico para no revelar si el correo existe o no
-    generic_response = {
-        "message": "Si el correo existe, se enviará un código de recuperación."
-    }
+logger = logging.getLogger(__name__)
+
+def request_password_recovery(db: Session, email: str, app_debug: bool = False) -> dict:
+    normalized_email = email.strip().lower()
+    user = get_user_by_email(db, normalized_email)
 
     if not user:
-        return generic_response
+        raise ValueError("No existe una cuenta registrada con ese correo electrónico.")
 
     if not user.is_active or not user.activo:
-        return generic_response
+        raise ValueError("La cuenta asociada a ese correo está inactiva.")
 
     code = generate_password_reset_code(db, user)
-
     subject, html_body, text_body = build_password_recovery_email(user.nombre, code)
 
     try:
+        logger.info("Intentando enviar código de recuperación a: %s", user.correo)
+
         send_email(
             to_email=user.correo,
             subject=subject,
             html_body=html_body,
             text_body=text_body,
         )
-    except Exception:
-        # En desarrollo, si falla el correo real, todavía permitimos debug_code
+
+        logger.info("Código de recuperación enviado correctamente a: %s", user.correo)
+
+    except Exception as e:
+        logger.exception("Error enviando correo de recuperación a %s: %s", user.correo, str(e))
+
         if app_debug:
             return {
                 "message": "No se pudo enviar el correo real. Se generó un código de depuración.",
                 "debug_code": code,
             }
-        raise ValueError("No se pudo enviar el correo de recuperación en este momento.")
 
-    response = generic_response.copy()
+        raise ValueError("No se pudo enviar el código de recuperación al correo electrónico.")
+
+    response = {"message": "Se envió un código de recuperación al correo registrado."}
+
     if app_debug:
         response["debug_code"] = code
+
     return response
 
-
 def verify_recovery_code(db: Session, email: str, code: str) -> dict:
-    user = get_user_by_email(db, email)
+    normalized_email = email.strip().lower()
+    user = get_user_by_email(db, normalized_email)
+
     if not user:
-        raise ValueError("No existe un usuario con ese correo.")
+        raise ValueError("No existe una cuenta registrada con ese correo electrónico.")
 
     verify_password_reset_code(db, user, code)
     return {"message": "Código verificado correctamente."}
 
-
 def reset_password_with_code(db: Session, email: str, code: str, new_password: str) -> dict:
-    user = get_user_by_email(db, email)
+    normalized_email = email.strip().lower()
+    user = get_user_by_email(db, normalized_email)
+
     if not user:
-        raise ValueError("No existe un usuario con ese correo.")
+        raise ValueError("No existe una cuenta registrada con ese correo electrónico.")
 
     verify_password_reset_code(db, user, code)
     apply_new_password(db, user, new_password)

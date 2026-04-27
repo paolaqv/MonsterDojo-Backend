@@ -87,10 +87,9 @@ def validate_password_against_policy(password: str, policy: PoliticaPassword) ->
     if policy.requiere_numeros and not any(c.isdigit() for c in password):
         raise ValueError("La contraseña debe incluir al menos un número.")
 
-    especiales = set(string.punctuation)
+    especiales = set("!@#$%^&*()_+-=[]{}|;:,.<>?/\\")
     if policy.requiere_simbolos and not any(c in especiales for c in password):
         raise ValueError("La contraseña debe incluir al menos un símbolo especial.")
-
 
 def validate_password_history(
     db: Session,

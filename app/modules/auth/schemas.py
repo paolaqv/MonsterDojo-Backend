@@ -1,5 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
-
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from app.modules.users.schemas import CurrentUserWithPermissionsRead, UserRead
 
 
@@ -16,12 +15,19 @@ class TokenResponse(BaseModel):
 
 class RegisterRequest(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=50)
+    primer_apellido: str = Field(..., min_length=1, max_length=50)
+    segundo_apellido: str | None = Field(default=None, max_length=50)
     correo: EmailStr
     telefono: int | None = None
     password: str = Field(..., min_length=6, max_length=256)
-    pregunta_seguridad: str = Field(..., min_length=1, max_length=255)
-    respuesta_seguridad: str = Field(..., min_length=1, max_length=255)
     rol_id_rol: str = Field(..., min_length=1, max_length=50)
+
+    @field_validator("correo")
+    @classmethod
+    def validate_gmail_domain(cls, value: str) -> str:
+        if not value.lower().endswith("@gmail.com"):
+            raise ValueError("El correo debe pertenecer al dominio @gmail.com.")
+        return value.lower()
 
 
 class MessageResponse(BaseModel):

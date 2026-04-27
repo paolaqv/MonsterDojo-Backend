@@ -1,4 +1,4 @@
-def build_password_recovery_email(user_name: str, code: str) -> tuple[str, str]:
+def build_password_recovery_email(user_name: str, code: str) -> tuple[str, str, str]:
     subject = "Recuperación de contraseña - Monster Dojo"
 
     html_body = f"""

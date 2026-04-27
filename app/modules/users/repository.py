@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.modules.users.model import Rol, Usuario
@@ -18,7 +18,7 @@ def get_user_by_id(db: Session, user_id: int) -> Usuario | None:
 
 
 def get_user_by_email(db: Session, email: str) -> Usuario | None:
-    stmt = select(Usuario).where(Usuario.correo == email)
+    stmt = select(Usuario).where(func.lower(Usuario.correo) == email.lower())
     return db.scalar(stmt)
 
 
@@ -37,11 +37,13 @@ def create_user(
 
     user = Usuario(
         nombre=user_data.nombre,
+        primer_apellido=user_data.primer_apellido,
+        segundo_apellido=user_data.segundo_apellido,
         correo=user_data.correo,
         telefono=user_data.telefono,
         password=hashed_password,
-        pregunta_seguridad=user_data.pregunta_seguridad or 'temporal',
-        respuesta_seguridad=user_data.respuesta_seguridad or 'temporal',
+        pregunta_seguridad="temporal",
+        respuesta_seguridad="temporal",
         rol_id_rol=user_data.rol_id_rol,
         is_active=True,
         activo=True,
