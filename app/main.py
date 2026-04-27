@@ -25,10 +25,10 @@ app = FastAPI(
 )
 
 
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=settings.trusted_hosts_list,
-)
+# app.add_middleware(
+#     TrustedHostMiddleware,
+#     allowed_hosts=settings.trusted_hosts_list,
+# )
 
 
 app.add_middleware(
