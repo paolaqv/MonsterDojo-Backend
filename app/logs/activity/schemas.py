@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import Any, Dict, Literal, Optional
+import json
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -7,9 +8,8 @@ from app.shared.validation import ensure_plain_text
 
 
 class ActivityLogCreate(BaseModel):
-
     usuario_id: Optional[int] = Field(default=None, ge=1)
-    rol_id: Optional[str] = Field(default=None, min_length=3, max_length=50)
+    rol_id: Optional[str] = Field(default=None, max_length=50)
 
     evento: str = Field(..., min_length=1, max_length=80)
     modulo: str = Field(..., min_length=1, max_length=50)
@@ -21,10 +21,10 @@ class ActivityLogCreate(BaseModel):
     user_agent: Optional[str] = Field(default=None, max_length=500)
 
     estado: Optional[str] = Field(default=None, max_length=20)
-    severidad: Optional[Literal["BAJA", "MEDIA", "ALTA", "CRITICA"]] = None
+    severidad: Optional[str] = Field(default=None, max_length=20)
 
     entidad_afectada: Optional[str] = Field(default=None, max_length=50)
-    entidad_id: Optional[int] = Field(default=None, ge=1)
+    entidad_id: Optional[int] = Field(default=None)
 
     valor_anterior: Optional[Dict[str, Any]] = None
     valor_nuevo: Optional[Dict[str, Any]] = None
@@ -38,12 +38,33 @@ class ActivityLogCreate(BaseModel):
         "ip_origen",
         "user_agent",
         "estado",
+        "severidad",
         "entidad_afectada",
         mode="before",
     )
     @classmethod
     def validate_text_fields(cls, value):
         return ensure_plain_text(value)
+
+    @field_validator("valor_anterior", "valor_nuevo", mode="before")
+    @classmethod
+    def parse_json_values(cls, value):
+        if value is None:
+            return None
+
+        if isinstance(value, dict):
+            return value
+
+        if isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, dict):
+                    return parsed
+                return {"value": parsed}
+            except json.JSONDecodeError:
+                return {"value": value}
+
+        return {"value": value}
 
 
 class ActivityLogOut(ActivityLogCreate):
