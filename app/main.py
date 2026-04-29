@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,28 +26,18 @@ app = FastAPI(
 )
 
 
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=settings.trusted_hosts_list,
-)
+# app.add_middleware(
+#     TrustedHostMiddleware,
+#     allowed_hosts=settings.trusted_hosts_list,
+# )
 
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
-    allow_methods=[
-        "GET",
-        "POST",
-        "PUT",
-        "PATCH",
-        "DELETE",
-        "OPTIONS"
-    ],
-    allow_headers=[
-        "Authorization",
-        "Content-Type"
-    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -109,6 +100,54 @@ async def app_exception_handler(
             exc.code,
             exc.message
         )
+    )
+
+
+HTTP_ERROR_CODES = {
+    400: "BAD_REQUEST",
+    401: "UNAUTHORIZED",
+    403: "FORBIDDEN",
+    404: "NOT_FOUND",
+}
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(
+    request: Request,
+    exc: HTTPException,
+):
+    code = HTTP_ERROR_CODES.get(
+        exc.status_code,
+        "INTERNAL_ERROR" if exc.status_code >= 500 else "HTTP_ERROR",
+    )
+
+    if exc.status_code >= 500:
+        message = "Error inesperado del sistema"
+    elif isinstance(exc.detail, str):
+        message = exc.detail
+    else:
+        message = "Solicitud invalida"
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=error_response(
+            code,
+            message,
+        ),
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError,
+):
+    return JSONResponse(
+        status_code=400,
+        content=error_response(
+            "BAD_REQUEST",
+            "Datos de entrada invalidos",
+        ),
     )
 
 

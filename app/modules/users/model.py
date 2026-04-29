@@ -26,7 +26,7 @@ class Rol(Base):
     usuarios: Mapped[list["Usuario"]] = relationship(
         "Usuario",
         back_populates="rol",
-        lazy="selectin",
+        lazy="noload",
     )
 
     def __repr__(self) -> str:
@@ -79,7 +79,7 @@ class Usuario(Base):
     registros_juego: Mapped[list["RegistroJuego"]] = relationship(
         "RegistroJuego",
         back_populates="usuario",
-        lazy="selectin",
+        lazy="noload",
     )
 
     reservas: Mapped[list["Reserva"]] = relationship(
