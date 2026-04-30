@@ -10,6 +10,8 @@ engine = create_engine(
     settings.database_url,
     echo=settings.app_debug,
     future=True,
+    pool_pre_ping=True,
+    connect_args={"sslmode":"require"}
 )
 
 SessionLocal = sessionmaker(

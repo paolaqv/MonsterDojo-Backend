@@ -1,17 +1,22 @@
 # app/modules/orders/schemas.py
 
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.shared.validation import ensure_plain_text
+
+OrderType = Literal["Pedido"]
+OrderState = Literal["Pendiente", "En Progreso", "Finalizado", "Cancelado"]
 
 class OrderProductInput(BaseModel):
-    id_producto: int
-    cantidad: int = Field(..., ge=1)
+    id_producto: int = Field(..., ge=1)
+    cantidad: int = Field(..., ge=1, le=100)
 
 
 class OrderCreate(BaseModel):
-    productos: list[OrderProductInput] = Field(default_factory=list)
+    productos: list[OrderProductInput] = Field(..., min_length=1, max_length=50)
 
 
 class OrderCheckoutResponse(BaseModel):
@@ -20,19 +25,29 @@ class OrderCheckoutResponse(BaseModel):
 
 
 class OrderBase(BaseModel):
-    tipo: str = Field(..., min_length=1, max_length=50)
-    estado: str = Field(..., min_length=1, max_length=50)
+    tipo: OrderType
+    estado: OrderState
     fecha_hora: datetime
-    usuario_id_usuario: int
-    mesa_id_mesa: int
+    usuario_id_usuario: int = Field(..., ge=1)
+    mesa_id_mesa: int = Field(..., ge=1)
+
+    @field_validator("tipo", "estado", mode="before")
+    @classmethod
+    def validate_order_text(cls, value):
+        return ensure_plain_text(value)
 
 
 class OrderUpdate(BaseModel):
-    tipo: str | None = Field(default=None, min_length=1, max_length=50)
-    estado: str | None = Field(default=None, min_length=1, max_length=50)
+    tipo: OrderType | None = None
+    estado: OrderState | None = None
     fecha_hora: datetime | None = None
-    usuario_id_usuario: int | None = None
-    mesa_id_mesa: int | None = None
+    usuario_id_usuario: int | None = Field(default=None, ge=1)
+    mesa_id_mesa: int | None = Field(default=None, ge=1)
+
+    @field_validator("tipo", "estado", mode="before")
+    @classmethod
+    def validate_order_update_text(cls, value):
+        return ensure_plain_text(value)
 
 
 class OrderRead(OrderBase):
@@ -42,10 +57,10 @@ class OrderRead(OrderBase):
 
 
 class OrderDetailBase(BaseModel):
-    cantidad: int = Field(..., ge=1)
-    precio: float = Field(..., ge=0)
-    producto_id_producto: int
-    pedido_id_pedido: int
+    cantidad: int = Field(..., ge=1, le=100)
+    precio: float = Field(..., ge=0, le=100000)
+    producto_id_producto: int = Field(..., ge=1)
+    pedido_id_pedido: int = Field(..., ge=1)
 
 
 class OrderDetailCreate(OrderDetailBase):

@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-
 from app.db.session import get_db
 
 from app.logs.activity.service import registrar_evento
@@ -72,9 +71,24 @@ def update_security_user(
     user_id:int,
     payload:UserUpdate,
     db:Session=Depends(get_db),
-    _:Usuario=Depends(require_roles("encargadoSeguridad"))
+    current_user:Usuario=Depends(require_roles("encargadoSeguridad"))
 ):
     try:
+        if user_id == current_user.id_usuario and payload.rol_id_rol != current_user.rol_id_rol:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No puedes cambiar tu propio rol desde este flujo.",
+            )
+
+        previous_user = get_user_by_id(db, user_id)
+        valor_anterior = None
+        if previous_user:
+            valor_anterior = {
+                "nombre": previous_user.nombre,
+                "correo": previous_user.correo,
+                "rol_id_rol": previous_user.rol_id_rol,
+                "activo": previous_user.activo,
+            }
 
         user=update_user(
             db,
@@ -84,13 +98,22 @@ def update_security_user(
 
         registrar_evento(
             db=db,
+            usuario_id=current_user.id_usuario,
+            rol_id=current_user.rol_id_rol,
             evento="USUARIO_EDITADO",
             modulo="usuarios",
             accion="UPDATE",
             estado="OK",
             severidad="MEDIA",
             entidad_afectada="usuario",
-            entidad_id=user_id
+            entidad_id=user_id,
+            valor_anterior=valor_anterior,
+            valor_nuevo={
+                "nombre": user.nombre,
+                "correo": user.correo,
+                "rol_id_rol": user.rol_id_rol,
+                "activo": user.activo,
+            },
         )
 
         return user
@@ -113,9 +136,17 @@ def update_security_user_role(
     user_id:int,
     payload:UserRoleUpdate,
     db:Session=Depends(get_db),
-    _:Usuario=Depends(require_roles("encargadoSeguridad"))
+    current_user:Usuario=Depends(require_roles("encargadoSeguridad"))
 ):
     try:
+        if user_id == current_user.id_usuario and payload.activo is False:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No puedes desactivar tu propio usuario.",
+            )
+
+        previous_user = get_user_by_id(db, user_id)
+        previous_role = previous_user.rol_id_rol if previous_user else None
 
         user=update_user_role(
             db,
@@ -125,6 +156,8 @@ def update_security_user_role(
 
         registrar_evento(
             db=db,
+            usuario_id=current_user.id_usuario,
+            rol_id=current_user.rol_id_rol,
             evento="ROL_CAMBIADO",
             modulo="usuarios",
             accion="UPDATE",
@@ -134,6 +167,9 @@ def update_security_user_role(
             entidad_afectada="usuario",
             entidad_id=user_id,
 
+            valor_anterior={
+                "rol_anterior":previous_role
+            },
             valor_nuevo={
                 "nuevo_rol":payload.rol_id_rol
             }
@@ -162,9 +198,17 @@ def update_security_user_status(
     user_id:int,
     payload:UserStatusUpdate,
     db:Session=Depends(get_db),
-    _:Usuario=Depends(require_roles("encargadoSeguridad"))
+    current_user:Usuario=Depends(require_roles("encargadoSeguridad"))
 ):
     try:
+        if user_id == current_user.id_usuario:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No puedes eliminar tu propio usuario.",
+            )
+
+        previous_user = get_user_by_id(db, user_id)
+        previous_status = previous_user.activo if previous_user else None
 
         user=update_user_status(
             db,
@@ -174,6 +218,8 @@ def update_security_user_status(
 
         registrar_evento(
             db=db,
+            usuario_id=current_user.id_usuario,
+            rol_id=current_user.rol_id_rol,
             evento="USUARIO_ESTADO_CAMBIADO",
             modulo="usuarios",
             accion="UPDATE",
@@ -181,6 +227,9 @@ def update_security_user_status(
             severidad="ALTA",
             entidad_afectada="usuario",
             entidad_id=user_id,
+            valor_anterior={
+                "activo":previous_status
+            },
             valor_nuevo={
                 "activo":payload.activo
             }
@@ -200,9 +249,34 @@ def update_security_user_status(
 def delete_security_user(
     user_id:int,
     db:Session=Depends(get_db),
-    _:Usuario=Depends(require_roles("encargadoSeguridad"))
+    current_user:Usuario=Depends(require_roles("encargadoSeguridad"))
 ):
     try:
+        if (
+            user_id == current_user.id_usuario
+            and payload.rol_id_rol is not None
+            and payload.rol_id_rol != current_user.rol_id_rol
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No puedes cambiar tu propio rol desde este flujo.",
+            )
+
+        if user_id == current_user.id_usuario and payload.activo is False:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No puedes desactivar tu propio usuario.",
+            )
+
+        previous_user = get_user_by_id(db, user_id)
+        valor_anterior = None
+        if previous_user:
+            valor_anterior = {
+                "nombre": previous_user.nombre,
+                "correo": previous_user.correo,
+                "rol_id_rol": previous_user.rol_id_rol,
+                "activo": previous_user.activo,
+            }
 
         delete_user(
             db,
@@ -211,13 +285,16 @@ def delete_security_user(
 
         registrar_evento(
             db=db,
+            usuario_id=current_user.id_usuario,
+            rol_id=current_user.rol_id_rol,
             evento="USUARIO_ELIMINADO",
             modulo="usuarios",
             accion="DELETE",
             estado="OK",
             severidad="CRITICA",
             entidad_afectada="usuario",
-            entidad_id=user_id
+            entidad_id=user_id,
+            valor_anterior=valor_anterior,
         )
 
         return {
@@ -236,7 +313,7 @@ def delete_security_user(
 def send_credentials_placeholder(
     user_id: int,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_roles("encargadoSeguridad")),
+    current_user: Usuario = Depends(require_roles("encargadoSeguridad")),
 ):
     user = get_user_by_id(db, user_id)
     if not user:
@@ -252,7 +329,7 @@ def send_credentials_placeholder(
 def unlock_security_user(
     user_id: int,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_roles("encargadoSeguridad")),
+    current_user: Usuario = Depends(require_roles("encargadoSeguridad")),
 ):
     user = get_user_by_id(db, user_id)
     if not user:
@@ -262,4 +339,18 @@ def unlock_security_user(
         )
 
     unlock_user(db, user)
+    registrar_evento(
+        db=db,
+        usuario_id=current_user.id_usuario,
+        rol_id=current_user.rol_id_rol,
+        evento="USUARIO_DESBLOQUEADO",
+        modulo="usuarios",
+        accion="UPDATE",
+        estado="OK",
+        severidad="ALTA",
+        entidad_afectada="usuario",
+        entidad_id=user_id,
+        valor_anterior={"bloqueado": True},
+        valor_nuevo={"bloqueado": False},
+    )
     return {"message": "Usuario desbloqueado correctamente."}

@@ -33,6 +33,7 @@ class Pago(Base):
         nullable=False,
     )
     registro_juego_id_regJuego: Mapped[int] = mapped_column(
+        "registro_juego_id_regJuego",
         Integer,
         ForeignKey("registro_juego.id_regJuego"),
         nullable=False,

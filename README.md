@@ -138,6 +138,22 @@ Entre las librerías principales del proyecto se encuentran:
 - python-multipart
 - email-validator
 
+## Revision de dependencias
+
+Las dependencias del backend quedan fijadas con versiones exactas en
+`requirements.txt`. Antes de entregar cambios de seguridad se debe ejecutar:
+
+~~~bash
+python -m pip_audit -r requirements.txt
+python -m pip check
+~~~
+
+La auditoria OWASP documentada para este trabajo queda en:
+
+~~~text
+OWASP_IMPLEMENTACION.txt
+~~~
+
 ## Flujo recomendado para ejecutar el proyecto
 
 1. Clonar el repositorio

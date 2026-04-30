@@ -41,3 +41,53 @@ def build_password_recovery_email(user_name: str, code: str) -> tuple[str, str, 
     )
 
     return subject, html_body, text_body
+
+def build_email_verification_email(code: str) -> tuple[str, str, str]:
+    subject = "Código de verificación - Monster Dojo"
+
+    html_body = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif;">
+        <h2>Verificación de correo</h2>
+        <p>Tu código de verificación es:</p>
+        <h1>{code}</h1>
+        <p>Este código expira en 10 minutos.</p>
+      </body>
+    </html>
+    """
+
+    text_body = (
+        f"Tu código de verificación es: {code}\n"
+        f"Este código expira en 10 minutos.\n"
+        f"Monster Dojo"
+    )
+
+    return subject, html_body, text_body
+
+
+def build_credentials_email(nombre: str, usuario_acceso: str, password_temporal: str) -> tuple[str, str, str]:
+    subject = "Credenciales de acceso - Monster Dojo"
+
+    html_body = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif;">
+        <h2>Credenciales de acceso</h2>
+        <p>Hola {nombre},</p>
+        <p>Tu usuario de acceso es:</p>
+        <h3>{usuario_acceso}</h3>
+        <p>Tu contraseña temporal es:</p>
+        <h3>{password_temporal}</h3>
+        <p>Debes cambiar esta contraseña en tu primer inicio de sesión.</p>
+      </body>
+    </html>
+    """
+
+    text_body = (
+        f"Hola {nombre},\n\n"
+        f"Tu usuario de acceso es: {usuario_acceso}\n"
+        f"Tu contraseña temporal es: {password_temporal}\n\n"
+        f"Debes cambiar esta contraseña en tu primer inicio de sesión.\n"
+        f"Monster Dojo"
+    )
+
+    return subject, html_body, text_body

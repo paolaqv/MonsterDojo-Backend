@@ -7,6 +7,48 @@ from app.modules.users.model import Usuario
 from app.modules.users.service import get_user_permissions
 
 
+ROLE_ACCESS_MATRIX = {
+    "cliente": {
+        "reservas": ["crear", "ver_propias", "cancelar_propias"],
+        "pedidos": ["crear", "ver_propios", "cancelar_propios"],
+        "perfil": ["ver_propio", "editar_propio"],
+    },
+    "mesero": {
+        "pedidos": ["ver", "gestionar_estado"],
+        "reservas": ["ver"],
+        "mesas": ["ver"],
+    },
+    "encargadoLocal": {
+        "productos": ["ver", "gestionar"],
+        "juegos": ["ver", "gestionar"],
+        "mesas": ["ver", "gestionar"],
+        "pedidos": ["ver", "gestionar"],
+        "reservas": ["ver", "gestionar"],
+    },
+    "encargadoSeguridad": {
+        "usuarios": ["ver", "gestionar_roles", "gestionar_estado"],
+        "roles": ["ver", "gestionar"],
+        "auditoria": ["ver", "filtrar", "monitorear_criticos"],
+        "politicas_password": ["ver", "gestionar"],
+    },
+}
+
+MODULE_ACTION_PERMISSIONS = {
+    "products:read": "ver_productos",
+    "products:manage": "gestionar_productos",
+    "games:read": "ver_juegos",
+    "games:manage": "gestionar_juegos",
+    "tables:read": "ver_mesas",
+    "tables:manage": "gestionar_mesas",
+    "orders:read_detail": "ver_pedidos_detalle",
+    "orders:manage": "gestionar_pedidos",
+    "reservations:create": "crear_reservas",
+    "reservations:read_detail": "ver_reservas_detalle",
+    "reservations:manage": "gestionar_reservas",
+    "users:read": "ver_usuarios",
+}
+
+
 def require_roles(*allowed_roles: str):
     def checker(current_user: Usuario = Depends(get_current_user)) -> Usuario:
         if current_user.rol_id_rol not in allowed_roles:
