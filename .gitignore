@@ -136,6 +136,7 @@ celerybeat.pid
 
 # Environments
 .env
+.env.example
 .envrc
 .venv
 env/
@@ -209,4 +210,8 @@ __marimo__/
 core/config.py
 
 alembic.ini
+alembic.ini
 alembic/
+estructura.txt
+OWASP_IMPLEMENTACION.txt    
+.claude/worktrees/focused-dewdney-eabfb4/

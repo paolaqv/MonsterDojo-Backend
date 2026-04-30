@@ -1,4 +1,5 @@
 .
+|-- OWASP_IMPLEMENTACION.txt
 |-- README.md
 |-- alembic
 |   |-- README
@@ -28,15 +29,19 @@
 |   |   |-- __pycache__
 |   |   |   |-- __init__.cpython-312.pyc
 |   |   |   |-- config.cpython-312.pyc
+|   |   |   |-- constants.cpython-312.pyc
+|   |   |   |-- email.cpython-312.pyc
 |   |   |   `-- security.cpython-312.pyc
 |   |   |-- config.py
 |   |   |-- constants.py
+|   |   |-- email.py
 |   |   `-- security.py
 |   |-- db
 |   |   |-- __init__.py
 |   |   |-- __pycache__
 |   |   |   |-- __init__.cpython-312.pyc
 |   |   |   |-- base.cpython-312.pyc
+|   |   |   |-- init_db.cpython-312.pyc
 |   |   |   `-- session.cpython-312.pyc
 |   |   |-- base.py
 |   |   |-- init_db.py
@@ -44,7 +49,8 @@
 |   |-- logs
 |   |   |-- __init__.py
 |   |   |-- __pycache__
-|   |   |   `-- __init__.cpython-312.pyc
+|   |   |   |-- __init__.cpython-312.pyc
+|   |   |   `-- router.cpython-312.pyc
 |   |   |-- activity
 |   |   |   |-- __init__.py
 |   |   |   |-- __pycache__
@@ -67,11 +73,14 @@
 |   |   |   |-- __pycache__
 |   |   |   |   |-- __init__.cpython-312.pyc
 |   |   |   |   |-- dependencies.cpython-312.pyc
+|   |   |   |   |-- email_templates.cpython-312.pyc
 |   |   |   |   |-- permissions.cpython-312.pyc
+|   |   |   |   |-- repository.cpython-312.pyc
 |   |   |   |   |-- router.cpython-312.pyc
 |   |   |   |   |-- schemas.cpython-312.pyc
 |   |   |   |   `-- service.cpython-312.pyc
 |   |   |   |-- dependencies.py
+|   |   |   |-- email_templates.py
 |   |   |   |-- permissions.py
 |   |   |   |-- repository.py
 |   |   |   |-- router.py
@@ -162,6 +171,16 @@
 |   |   |   |-- schemas.py
 |   |   |   `-- service.py
 |   |   |-- security
+|   |   |   |-- passwords
+|   |   |   |   |-- __pycache__
+|   |   |   |   |   |-- model.cpython-312.pyc
+|   |   |   |   |   |-- router.cpython-312.pyc
+|   |   |   |   |   |-- schemas.cpython-312.pyc
+|   |   |   |   |   `-- service.cpython-312.pyc
+|   |   |   |   |-- model.py
+|   |   |   |   |-- router.py
+|   |   |   |   |-- schemas.py
+|   |   |   |   `-- service.py
 |   |   |   `-- roles
 |   |   |       |-- __pycache__
 |   |   |       |   |-- model.cpython-312.pyc
@@ -204,9 +223,14 @@
 |   |       `-- service.py
 |   `-- shared
 |       |-- __init__.py
+|       |-- __pycache__
+|       |   |-- __init__.cpython-312.pyc
+|       |   |-- exceptions.cpython-312.pyc
+|       |   |-- responses.cpython-312.pyc
+|       |   `-- validation.cpython-312.pyc
 |       |-- exceptions.py
-|       |-- pagination.py
-|       `-- responses.py
+|       |-- responses.py
+|       `-- validation.py
 |-- estructura.txt
 |-- requirements.txt
 `-- tests
@@ -214,4 +238,4 @@
     |-- conftest.py
     `-- test_health.py
 
-40 directories, 174 files
+43 directories, 195 files

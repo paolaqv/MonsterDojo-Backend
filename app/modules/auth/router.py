@@ -4,11 +4,10 @@ from app.modules.security.passwords.service import get_active_password_policy
 from app.modules.security.passwords.schemas import PasswordPolicyRead
 from app.core.config import get_settings
 from app.db.session import get_db
-
+from fastapi import Request
+from app.modules.auth.captcha import  verify_captcha
 from app.logs.activity.service import registrar_evento
-
 from app.modules.auth.schemas import (
-    ChangeSecurityQuestionRequest,
     LoginRequest,
     MessageResponse,
     PasswordChangeRequiredRequest,
@@ -16,11 +15,11 @@ from app.modules.auth.schemas import (
     PasswordRecoveryResetRequest,
     PasswordRecoveryVerifyRequest,
     RegisterRequest,
-    ResetPasswordRequest,
     SecurityQuestionRequest,
     SecurityQuestionResponse,
     TokenResponse,
-    VerifySecurityAnswerRequest,
+    EmailVerificationRequest,
+    EmailVerificationConfirmRequest,
 )
 
 from app.modules.auth.service import (
@@ -33,6 +32,11 @@ from app.modules.auth.service import (
     reset_password_with_security_answer,
     verify_recovery_code,
     verify_security_answer,
+)
+
+from app.modules.auth.email_verification import (
+    send_email_verification_code,
+    verify_email_code,
 )
 
 from app.modules.users.schemas import UserRead
@@ -48,9 +52,19 @@ settings = get_settings()
 )
 def login(
     payload: LoginRequest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     try:
+        print("LOGIN ENDPOINT RECIBIDO =>", payload.model_dump(), flush=True)
+        print("RECAPTCHA TOKEN RECIBIDO =>", payload.recaptcha_token[:30], flush=True)
+
+        verify_captcha(
+            token=payload.recaptcha_token,
+            remote_ip=request.client.host if request.client else None,
+        )
+
+        print("RECAPTCHA OK", flush=True)
 
         resultado = login_user(
             db,
@@ -58,7 +72,6 @@ def login(
             payload.password
         )
 
-        # AUDITORIA LOGIN EXITOSO
         registrar_evento(
             db=db,
             evento="LOGIN_EXITOSO",
@@ -72,8 +85,9 @@ def login(
         return resultado
 
     except ValueError as e:
+        mensaje = str(e)
+        print("LOGIN VALUE ERROR =>", mensaje, flush=True)
 
-        # AUDITORIA LOGIN FALLIDO
         registrar_evento(
             db=db,
             evento="LOGIN_FALLIDO",
@@ -81,14 +95,19 @@ def login(
             accion="LOGIN",
             estado="FALLIDO",
             severidad="ALTA",
-            descripcion="Credenciales inválidas"
+            descripcion=mensaje
+        )
+
+        status_code = (
+            status.HTTP_400_BAD_REQUEST
+            if "reCAPTCHA" in mensaje
+            else status.HTTP_401_UNAUTHORIZED
         )
 
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
+            status_code=status_code,
+            detail=mensaje,
         )
-
 
 @router.post(
     "/register",
@@ -148,112 +167,18 @@ def security_question(payload: SecurityQuestionRequest, db: Session = Depends(ge
         )
 
 
-@router.post(
-    "/verify-security-answer",
-    response_model=MessageResponse
-)
-def verify_answer(
-    payload: VerifySecurityAnswerRequest,
-    db: Session = Depends(get_db)
-):
-    try:
-        return verify_security_answer(
-            db,
-            payload.correo,
-            payload.respuesta_seguridad
-        )
-
-    except ValueError as e:
-
-        registrar_evento(
-            db=db,
-            evento="RESPUESTA_SEGURIDAD_INVALIDA",
-            modulo="auth",
-            accion="VERIFY",
-            estado="FALLIDO",
-            severidad="ALTA",
-            descripcion="Respuesta de seguridad incorrecta"
-        )
-
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
 
 
 @router.post(
     "/reset-password",
     response_model=MessageResponse
 )
-def reset_password(
-    payload: ResetPasswordRequest,
-    db: Session = Depends(get_db)
-):
-    try:
-
-        result = reset_password_with_security_answer(
-            db,
-            payload.correo,
-            payload.respuesta_seguridad,
-            payload.new_password,
-        )
-
-        # AUDITORIA PASSWORD RESET
-        registrar_evento(
-            db=db,
-            evento="PASSWORD_RESET",
-            modulo="auth",
-            accion="UPDATE",
-            estado="OK",
-            severidad="ALTA",
-            descripcion="Restablecimiento de contraseña"
-        )
-
-        return result
-
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
 
 
 @router.put(
     "/security-question",
     response_model=MessageResponse
 )
-def update_security_question(
-    payload: ChangeSecurityQuestionRequest,
-    db: Session = Depends(get_db),
-):
-    try:
-
-        result = change_security_question(
-            db,
-            payload.correo,
-            payload.password,
-            payload.nueva_pregunta_seguridad,
-            payload.nueva_respuesta_seguridad,
-        )
-
-        # AUDITORIA CAMBIO PREGUNTA SEGURIDAD
-        registrar_evento(
-            db=db,
-            evento="PREGUNTA_SEGURIDAD_CAMBIADA",
-            modulo="auth",
-            accion="UPDATE",
-            estado="OK",
-            severidad="MEDIA",
-            descripcion="Cambio de pregunta y respuesta de seguridad"
-        )
-
-        return result
-
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
 
 
 # =========================================================
@@ -347,3 +272,30 @@ def get_public_password_policy(db: Session = Depends(get_db)):
         "requiere_numeros": policy.requiere_numeros,
         "requiere_simbolos": policy.requiere_simbolos,
     }
+
+@router.post("/email-verification/request", response_model=MessageResponse)
+def request_email_verification(
+    payload: EmailVerificationRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+        return send_email_verification_code(db, str(payload.correo))
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@router.post("/email-verification/confirm", response_model=MessageResponse)
+def confirm_email_verification(
+    payload: EmailVerificationConfirmRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+        return verify_email_code(db, str(payload.correo), payload.codigo)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
