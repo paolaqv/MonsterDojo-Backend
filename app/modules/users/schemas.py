@@ -7,6 +7,8 @@ class UserBase(BaseModel):
     primer_apellido: str | None = Field(default=None, max_length=50)
     segundo_apellido: str | None = Field(default=None, max_length=50)
     correo: EmailStr
+    correo_contacto: EmailStr | None = None
+    correo_contacto_verificado: bool = False
     telefono: int | None = Field(default=None, ge=0, le=999999999999999)
     rol_id_rol: str = Field(..., min_length=3, max_length=50, pattern=ROLE_ID_PATTERN)
     is_active: bool = True
@@ -16,9 +18,19 @@ class UserCreate(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=50)
     primer_apellido: str = Field(..., min_length=1, max_length=50)
     segundo_apellido: str | None = Field(default=None, max_length=50)
+
+    # Para cliente: correo real/login.
+    # Para personal: correo real/contacto validado; el login se genera en backend.
     correo: EmailStr | None = None
+    correo_contacto: EmailStr | None = None
+    codigo_verificacion: str | None = Field(default=None, min_length=6, max_length=6)
+
     telefono: int | None = None
-    password: str = Field(..., min_length=8, max_length=256)
+
+    # Para cliente se usa el password que ingresa.
+    # Para personal se genera temporal si no llega password.
+    password: str | None = Field(default=None, min_length=8, max_length=256)
+
     rol_id_rol: str = Field(..., min_length=1, max_length=50)
     enviar_credenciales: bool | None = False
 

@@ -60,4 +60,4 @@ class RegistroJuego(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<RegistroJuego {self.id_regJuego}>"
+        return f"<RegistroJuego {self.id_regjuego}>"
