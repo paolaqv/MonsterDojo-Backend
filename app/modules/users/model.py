@@ -43,9 +43,14 @@ class Usuario(Base):
     segundo_apellido: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     correo: Mapped[str] = mapped_column(String(100), nullable=False)
+
     telefono: Mapped[int | None] = mapped_column(Integer, nullable=True)
     password: Mapped[str] = mapped_column(String(256), nullable=False)
-
+    correo_contacto: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    correo_contacto_verificado: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    codigo_verificacion_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    codigo_verificacion_expira_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    codigo_verificacion_usado: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     pregunta_seguridad: Mapped[str] = mapped_column(String(255), nullable=False, default="temporal")
     respuesta_seguridad: Mapped[str] = mapped_column(String(255), nullable=False, default="temporal")
