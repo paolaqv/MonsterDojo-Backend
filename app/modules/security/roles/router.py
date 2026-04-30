@@ -68,7 +68,7 @@ def read_role(
 def create_new_role(
     payload:RoleCreate,
     db:Session=Depends(get_db),
-    _:Usuario=Depends(require_roles("encargadoSeguridad"))
+    current_user:Usuario=Depends(require_roles("encargadoSeguridad"))
 ):
     try:
 
@@ -79,12 +79,16 @@ def create_new_role(
 
         registrar_evento(
             db=db,
+            usuario_id=current_user.id_usuario,
+            rol_id=current_user.rol_id_rol,
             evento="ROL_CREADO",
             modulo="roles",
             accion="CREATE",
             estado="OK",
             severidad="ALTA",
-            entidad_afectada="rol"
+            entidad_afectada="rol",
+            entidad_id=None,
+            valor_nuevo=role,
         )
 
         return role
@@ -102,9 +106,10 @@ def update_existing_role(
     role_id:str,
     payload:RoleUpdate,
     db:Session=Depends(get_db),
-    _:Usuario=Depends(require_roles("encargadoSeguridad"))
+    current_user:Usuario=Depends(require_roles("encargadoSeguridad"))
 ):
     try:
+        previous_role = get_role_by_id(db, role_id)
 
         role=update_role(
             db,
@@ -114,21 +119,32 @@ def update_existing_role(
 
         registrar_evento(
             db=db,
+            usuario_id=current_user.id_usuario,
+            rol_id=current_user.rol_id_rol,
             evento="ROL_EDITADO",
             modulo="roles",
             accion="UPDATE",
             estado="OK",
             severidad="ALTA",
-            entidad_afectada="rol"
+            entidad_afectada="rol",
+            valor_anterior=previous_role,
+            valor_nuevo=role,
         )
 
         return role
 
     except ValueError as e:
 
+        detail=str(e)
+        status_code=(
+            status.HTTP_404_NOT_FOUND
+            if detail=="Rol no encontrado."
+            else status.HTTP_400_BAD_REQUEST
+        )
+
         raise HTTPException(
-            status_code=404,
-            detail=str(e)
+            status_code=status_code,
+            detail=detail
         )
 
 
@@ -136,9 +152,10 @@ def update_existing_role(
 def delete_existing_role(
     role_id:str,
     db:Session=Depends(get_db),
-    _:Usuario=Depends(require_roles("encargadoSeguridad"))
+    current_user:Usuario=Depends(require_roles("encargadoSeguridad"))
 ):
     try:
+        previous_role = get_role_by_id(db, role_id)
 
         delete_role(
             db,
@@ -147,12 +164,15 @@ def delete_existing_role(
 
         registrar_evento(
             db=db,
+            usuario_id=current_user.id_usuario,
+            rol_id=current_user.rol_id_rol,
             evento="ROL_ELIMINADO",
             modulo="roles",
             accion="DELETE",
             estado="OK",
             severidad="CRITICA",
-            entidad_afectada="rol"
+            entidad_afectada="rol",
+            valor_anterior=previous_role,
         )
 
         return {
@@ -161,7 +181,14 @@ def delete_existing_role(
 
     except ValueError as e:
 
+        detail=str(e)
+        status_code=(
+            status.HTTP_404_NOT_FOUND
+            if detail=="Rol no encontrado."
+            else status.HTTP_400_BAD_REQUEST
+        )
+
         raise HTTPException(
-            status_code=404,
-            detail=str(e)
+            status_code=status_code,
+            detail=detail
         )

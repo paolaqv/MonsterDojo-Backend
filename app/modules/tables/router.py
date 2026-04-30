@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.logs.activity.service import registrar_evento
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.permissions import require_any_permission, require_permissions
 from app.modules.tables.schemas import AvailableTableResponse
@@ -96,10 +97,25 @@ def update_existing_table(
 def archive_existing_table(
     table_id: int,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_permissions("gestionar_mesas")),
+    current_user: Usuario = Depends(require_permissions("gestionar_mesas")),
 ):
     try:
-        return archive_table(db, table_id)
+        table = archive_table(db, table_id)
+        registrar_evento(
+            db=db,
+            usuario_id=current_user.id_usuario,
+            rol_id=current_user.rol_id_rol,
+            evento="MESA_ARCHIVADA",
+            modulo="mesas",
+            accion="UPDATE",
+            estado="OK",
+            severidad="ALTA",
+            entidad_afectada="mesa",
+            entidad_id=table_id,
+            valor_anterior={"activo": True},
+            valor_nuevo={"activo": False},
+        )
+        return table
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -111,10 +127,25 @@ def archive_existing_table(
 def unarchive_existing_table(
     table_id: int,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_permissions("gestionar_mesas")),
+    current_user: Usuario = Depends(require_permissions("gestionar_mesas")),
 ):
     try:
-        return unarchive_table(db, table_id)
+        table = unarchive_table(db, table_id)
+        registrar_evento(
+            db=db,
+            usuario_id=current_user.id_usuario,
+            rol_id=current_user.rol_id_rol,
+            evento="MESA_REACTIVADA",
+            modulo="mesas",
+            accion="UPDATE",
+            estado="OK",
+            severidad="MEDIA",
+            entidad_afectada="mesa",
+            entidad_id=table_id,
+            valor_anterior={"activo": False},
+            valor_nuevo={"activo": True},
+        )
+        return table
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

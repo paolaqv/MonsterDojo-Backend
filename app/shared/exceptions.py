@@ -45,3 +45,15 @@ class NotFoundError(AppException):
           "NOT_FOUND",
           msg
         )
+class ConflictError(AppException):
+
+    def __init__(
+        self,
+        msg="Conflicto detectado"
+    ):
+
+        super().__init__(
+            409,
+            "CONFLICT",
+            msg
+        )

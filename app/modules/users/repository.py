@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, func, select
 
 from app.modules.users.model import Rol, Usuario
 from app.modules.users.schemas import UserCreate, UserUpdate
@@ -40,6 +41,8 @@ def create_user(
         primer_apellido=user_data.primer_apellido,
         segundo_apellido=user_data.segundo_apellido,
         correo=user_data.correo,
+        correo_contacto=user_data.correo_contacto,
+        correo_contacto_verificado=True,
         telefono=user_data.telefono,
         password=hashed_password,
         pregunta_seguridad="temporal",
@@ -52,7 +55,7 @@ def create_user(
         fecha_bloqueo=None,
         fecha_ultimo_cambio_password=now,
         fecha_expiracion_password=now + timedelta(days=dias_expiracion),
-        requiere_cambio_password=False,
+        requiere_cambio_password=user_data.rol_id_rol != "cliente",
     )
 
     db.add(user)
@@ -76,3 +79,19 @@ def update_user(db: Session, user: Usuario, user_data: UserUpdate) -> Usuario:
 def delete_user(db: Session, user: Usuario) -> None:
     db.delete(user)
     db.commit()
+
+def get_user_by_contact_email(db: Session, email: str) -> Usuario | None:
+    stmt = select(Usuario).where(func.lower(Usuario.correo_contacto) == email.lower())
+    return db.scalar(stmt)
+
+def exists_email_or_contact_email(db: Session, email: str) -> bool:
+    normalized_email = email.strip().lower()
+
+    stmt = select(Usuario).where(
+        or_(
+            func.lower(Usuario.correo) == normalized_email,
+            func.lower(Usuario.correo_contacto) == normalized_email,
+        )
+    )
+
+    return db.scalar(stmt) is not None

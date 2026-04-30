@@ -18,17 +18,22 @@ class RegisterRequest(BaseModel):
     primer_apellido: str = Field(..., min_length=1, max_length=50)
     segundo_apellido: str | None = Field(default=None, max_length=50)
     correo: EmailStr
-    telefono: int | None = None
+    telefono: int | None = Field(default=None, ge=0, le=999999999999999)
     password: str = Field(..., min_length=6, max_length=256)
     rol_id_rol: str = Field(..., min_length=1, max_length=50)
 
     @field_validator("correo")
     @classmethod
-    def validate_gmail_domain(cls, value: str) -> str:
-        if not value.lower().endswith("@gmail.com"):
-            raise ValueError("El correo debe pertenecer al dominio @gmail.com.")
-        return value.lower()
+    def normalize_email(cls, value: str) -> str:
+        return value.strip().lower()
 
+class EmailVerificationRequest(BaseModel):
+    correo: EmailStr
+
+
+class EmailVerificationConfirmRequest(BaseModel):
+    correo: EmailStr
+    codigo: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 class MessageResponse(BaseModel):
     message: str
@@ -45,24 +50,6 @@ class SecurityQuestionRequest(BaseModel):
 class SecurityQuestionResponse(BaseModel):
     correo: EmailStr
     pregunta_seguridad: str
-
-
-class VerifySecurityAnswerRequest(BaseModel):
-    correo: EmailStr
-    respuesta_seguridad: str = Field(..., min_length=1, max_length=255)
-
-
-class ResetPasswordRequest(BaseModel):
-    correo: EmailStr
-    respuesta_seguridad: str = Field(..., min_length=1, max_length=255)
-    new_password: str = Field(..., min_length=6, max_length=256)
-
-
-class ChangeSecurityQuestionRequest(BaseModel):
-    correo: EmailStr
-    password: str = Field(..., min_length=1, max_length=256)
-    nueva_pregunta_seguridad: str = Field(..., min_length=1, max_length=255)
-    nueva_respuesta_seguridad: str = Field(..., min_length=1, max_length=255)
 
 
 # =========================================================
@@ -85,10 +72,10 @@ class PasswordRecoveryRequest(BaseModel):
 
 class PasswordRecoveryVerifyRequest(BaseModel):
     correo: EmailStr
-    codigo: str = Field(..., min_length=6, max_length=6)
+    codigo: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
 class PasswordRecoveryResetRequest(BaseModel):
     correo: EmailStr
-    codigo: str = Field(..., min_length=6, max_length=6)
+    codigo: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
     new_password: str = Field(..., min_length=1, max_length=256)

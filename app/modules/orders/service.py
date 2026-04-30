@@ -8,6 +8,13 @@ from app.modules.orders import repository
 from app.modules.orders.model import DetallePedido, Pedido
 from app.modules.orders.schemas import OrderCreate, OrderDetailCreate, OrderUpdate
 
+ORDER_ALLOWED_TRANSITIONS = {
+    "Pendiente": {"En Progreso", "Cancelado"},
+    "En Progreso": {"Finalizado", "Cancelado"},
+    "Finalizado": set(),
+    "Cancelado": set(),
+}
+
 
 def get_order_by_id(db: Session, order_id: int) -> Pedido | None:
     return repository.get_order_by_id(db, order_id)
@@ -57,6 +64,14 @@ def update_order(db: Session, order_id: int, order_data: OrderUpdate) -> Pedido:
     order = repository.get_order_by_id(db, order_id)
     if not order:
         raise ValueError("Pedido no encontrado.")
+
+    if order_data.estado is not None and order_data.estado != order.estado:
+        allowed_next_states = ORDER_ALLOWED_TRANSITIONS.get(order.estado, set())
+
+        if order_data.estado not in allowed_next_states:
+            raise ValueError(
+                f"Transicion de estado de pedido no permitida: {order.estado} -> {order_data.estado}."
+            )
 
     if order_data.usuario_id_usuario is not None:
         user = repository.get_user_by_id(db, order_data.usuario_id_usuario)

@@ -140,7 +140,7 @@ def validate_password_history(
     for item in recent_history:
         if verify_password(new_password, item.password_hash):
             raise ValueError(
-                "No puedes reutilizar una contraseña usada dentro del periodo vigente de seguridad."
+                "Por seguridad, no puedes usar una contraseña reciente. Elige una contraseña nueva."
             )
 
     # 4. No puede exceder el máximo de cambios permitidos dentro de la vigencia actual
@@ -149,7 +149,7 @@ def validate_password_history(
 
     if len(recent_history) >= max_changes_allowed:
         raise ValueError(
-            "Has alcanzado el número máximo de cambios de contraseña permitidos dentro del periodo vigente."
+            "Has alcanzado el número máximo de cambios de contraseña permitidos"
         )
 
 

@@ -1,3 +1,4 @@
+from app.shared.exceptions import ConflictError
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
@@ -60,11 +61,29 @@ def get_available_tables(
     )
 
     for reserva in reservas_usuario:
-        if exclude_reservation_id is not None and reserva.id_reserva == exclude_reservation_id:
+
+        if (
+            exclude_reservation_id is not None
+            and reserva.id_reserva == exclude_reservation_id
+        ):
             continue
 
-        if reserva.fecha_hora.date() == fecha_hora_inicio.date():
-            raise ValueError("Elige otra fecha, ya tienes una reserva en esta fecha.")
+        inicio_existente = reserva.fecha_hora
+
+        fin_existente = (
+            reserva.fecha_hora +
+            MAX_RESERVATION_DURATION
+        )   
+
+        hay_solapamiento = (
+            inicio_existente < fecha_hora_fin
+            and fin_existente > fecha_hora_inicio
+        )
+
+        if hay_solapamiento:
+            raise ConflictError(
+            "   Ya tienes una reserva en ese horario."
+        )
     mesas = (
         db.query(Mesa)
         .filter((Mesa.activo == True) | (Mesa.activo.is_(None)))
@@ -84,6 +103,7 @@ def get_available_tables(
         )
 
         reserva_solapada = None
+        
         for reserva in reservas_mesa:
             inicio_existente = reserva.fecha_hora
             fin_existente = reserva.fecha_hora + MAX_RESERVATION_DURATION
@@ -125,6 +145,19 @@ def archive_table(db: Session, table_id: int) -> Mesa:
     mesa = repository.get_table_by_id(db, table_id)
     if not mesa:
         raise ValueError("Mesa no encontrada.")
+
+    active_reservations = (
+        db.query(Reserva)
+        .filter(
+            Reserva.mesa_id_mesa == table_id,
+            Reserva.estado == "Reservado",
+            Reserva.fecha_hora >= datetime.utcnow(),
+        )
+        .count()
+    )
+
+    if active_reservations:
+        raise ValueError("No se puede archivar una mesa con reservas activas futuras.")
 
     return repository.archive_table(db, mesa)
 

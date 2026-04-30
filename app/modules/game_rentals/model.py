@@ -16,7 +16,11 @@ if TYPE_CHECKING:
 class RegistroJuego(Base):
     __tablename__ = "registro_juego"
 
-    id_regJuego: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id_regjuego: Mapped[int] = mapped_column(
+    "id_regJuego",
+    Integer,
+    primary_key=True
+)
     cantidad: Mapped[int] = mapped_column(Integer, nullable=False)
     precio: Mapped[float] = mapped_column(Float, nullable=False)
     tipo: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -56,4 +60,4 @@ class RegistroJuego(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<RegistroJuego {self.id_regJuego}>"
+        return f"<RegistroJuego {self.id_regjuego}>"
