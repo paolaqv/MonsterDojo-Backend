@@ -305,3 +305,7 @@ def _generate_temporary_password(length: int = 12) -> str:
             and any(c in "#$%&*" for c in password)
         ):
             return password
+
+def get_user_by_contact_email(db: Session, email: str) -> Usuario | None:
+    return repository.get_user_by_contact_email(db, email.strip().lower())
+

@@ -95,3 +95,12 @@ def exists_email_or_contact_email(db: Session, email: str) -> bool:
     )
 
     return db.scalar(stmt) is not None
+
+def get_user_by_contact_email(db: Session, email: str) -> Usuario | None:
+    normalized_email = email.strip().lower()
+
+    stmt = select(Usuario).where(
+        func.lower(Usuario.correo_contacto) == normalized_email
+    )
+
+    return db.scalar(stmt)
