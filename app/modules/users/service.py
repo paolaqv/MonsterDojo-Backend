@@ -19,7 +19,7 @@ from app.modules.users.model import Usuario
 from app.modules.users.schemas import UserCreate, UserUpdate
 
 
-def _normalize_text(value: str | None) -> str:
+def _normalize_text_for_email(value: str | None) -> str:
     if not value:
         return ""
     value = value.strip().lower()
@@ -31,7 +31,7 @@ def _normalize_text(value: str | None) -> str:
 
 
 def _first_token(value: str | None) -> str:
-    normalized = _normalize_text(value)
+    normalized = _normalize_text_for_email(value)
     return normalized.split(" ")[0] if normalized else ""
 
 
@@ -86,8 +86,7 @@ def get_user_by_id(db: Session, user_id: int) -> Usuario | None:
 
 
 def get_user_by_email(db: Session, email: str) -> Usuario | None:
-    normalized_email = email.strip().lower()
-    return repository.get_user_by_email(db, normalized_email)
+    return repository.get_user_by_email(db, email)
 
 
 def get_users(db: Session, skip: int = 0, limit: int = 100) -> list[Usuario]:
@@ -105,10 +104,7 @@ def create_user(db: Session, user_data: UserCreate) -> Usuario:
     if user_data.rol_id_rol == "cliente":
         if not user_data.correo:
             raise ValueError("El correo electrónico es obligatorio.")
-
-        normalized_email = user_data.correo.strip().lower()
-
-        existing_user = repository.get_user_by_email(db, normalized_email)
+        existing_user = repository.get_user_by_email(db, user_data.correo)
         if existing_user:
             raise ValueError("Ese correo electrónico ya está registrado.")
 
@@ -117,8 +113,8 @@ def create_user(db: Session, user_data: UserCreate) -> Usuario:
 
         validate_password_against_policy(user_data.password, policy)
 
-        final_email = normalized_email
-        contact_email = normalized_email
+        final_email = user_data.correo
+        contact_email = user_data.correo
         final_password = user_data.password
 
     # Personal interno: correo real validado + correo institucional generado
@@ -126,7 +122,7 @@ def create_user(db: Session, user_data: UserCreate) -> Usuario:
         if not user_data.correo_contacto:
             raise ValueError("El correo de contacto es obligatorio para usuarios internos.")
 
-        contact_email = user_data.correo_contacto.strip().lower()
+        contact_email = user_data.correo_contacto
 
         if not user_data.codigo_verificacion:
             raise ValueError("Debes verificar el correo de contacto antes de crear el usuario.")
@@ -152,9 +148,6 @@ def create_user(db: Session, user_data: UserCreate) -> Usuario:
             "correo": final_email,
             "correo_contacto": contact_email,
             "password": final_password,
-            "nombre": user_data.nombre.strip(),
-            "primer_apellido": user_data.primer_apellido.strip(),
-            "segundo_apellido": user_data.segundo_apellido.strip() if user_data.segundo_apellido else None,
         }
     )
 
@@ -197,10 +190,9 @@ def update_user(db: Session, user_id: int, user_data: UserUpdate) -> Usuario:
     # clientes: correo manual y único
     if new_role == "cliente":
         if user_data.correo is not None:
-            normalized_email = user_data.correo.strip().lower()
-            if repository.exists_email_or_contact_email(db, normalized_email, exclude_user_id=user_id):
+            if repository.exists_email_or_contact_email(db, user_data.correo, exclude_user_id=user_id):
                 raise ValueError("Ese correo electrónico ya está registrado.")
-            user_data = user_data.model_copy(update={"correo": normalized_email})
+            user_data = user_data.model_copy(update={"correo": user_data.correo})
 
     # usuarios internos: correo generado automáticamente
     else:
@@ -237,7 +229,7 @@ def update_current_user(db: Session, current_user: Usuario, payload):
     current_user.nombre = payload.nombre
     current_user.primer_apellido = payload.primer_apellido
     current_user.segundo_apellido = payload.segundo_apellido
-    current_user.correo = payload.correo.strip().lower()
+    current_user.correo = payload.correo
     current_user.telefono = payload.telefono
 
     db.add(current_user)
@@ -307,5 +299,4 @@ def _generate_temporary_password(length: int = 12) -> str:
             return password
 
 def get_user_by_contact_email(db: Session, email: str) -> Usuario | None:
-    return repository.get_user_by_contact_email(db, email.strip().lower())
-
+    return repository.get_user_by_contact_email(db, email)

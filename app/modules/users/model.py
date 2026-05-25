@@ -42,11 +42,11 @@ class Usuario(Base):
     primer_apellido: Mapped[str | None] = mapped_column(String(50), nullable=True)
     segundo_apellido: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
-    correo: Mapped[str] = mapped_column(String(100), nullable=False)
+    correo: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
 
     telefono: Mapped[int | None] = mapped_column(Integer, nullable=True)
     password: Mapped[str] = mapped_column(String(256), nullable=False)
-    correo_contacto: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    correo_contacto: Mapped[str | None] = mapped_column(String(100), unique=True, index=True, nullable=True)
     correo_contacto_verificado: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     codigo_verificacion_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     codigo_verificacion_expira_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
