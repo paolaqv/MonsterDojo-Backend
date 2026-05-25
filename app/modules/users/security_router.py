@@ -4,7 +4,7 @@ from app.db.session import get_db
 
 from app.logs.activity.service import registrar_evento
 
-from app.modules.auth.permissions import require_roles
+from app.modules.auth.permissions import require_permissions
 from app.modules.auth.schemas import MessageResponse
 from app.modules.security.passwords.service import unlock_user
 from app.modules.users.model import Usuario
@@ -19,7 +19,7 @@ from app.modules.users.service import (
     update_user_status,
 )
 
-
+#mediacion completa,  usuarios validados por permisos
 router = APIRouter(
     prefix="/security/users",
     tags=["Security Users"],
@@ -29,7 +29,7 @@ router = APIRouter(
 @router.get("/", response_model=list[UserRead])
 def list_users(
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_roles("encargadoSeguridad")),
+        _: Usuario = Depends(require_permissions("ver_usuarios"))
 ):
     return get_all_users(db)
 
@@ -38,7 +38,7 @@ def list_users(
 def read_user(
     user_id:int,
     db:Session=Depends(get_db),
-    _:Usuario=Depends(require_roles("encargadoSeguridad"))
+        _: Usuario = Depends(require_permissions("ver_usuarios"))
 ):
     user=get_user_by_id(db,user_id)
 
@@ -55,7 +55,7 @@ def read_user(
 def create_security_user(
     payload: UserCreate,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_roles("encargadoSeguridad")),
+    _: Usuario = Depends(require_permissions("gestionar_usuarios"))
 ):
     try:
         return create_user(db, payload)
@@ -71,7 +71,7 @@ def update_security_user(
     user_id:int,
     payload:UserUpdate,
     db:Session=Depends(get_db),
-    current_user:Usuario=Depends(require_roles("encargadoSeguridad"))
+    current_user:Usuario=Depends(require_permissions("gestionar_usuarios"))
 ):
     try:
         if user_id == current_user.id_usuario and payload.rol_id_rol != current_user.rol_id_rol:
@@ -136,13 +136,16 @@ def update_security_user_role(
     user_id:int,
     payload:UserRoleUpdate,
     db:Session=Depends(get_db),
-    current_user:Usuario=Depends(require_roles("encargadoSeguridad"))
+    current_user:Usuario=Depends(require_permissions("gestionar_usuarios"))
 ):
     try:
-        if user_id == current_user.id_usuario and payload.activo is False:
+        if (
+                user_id == current_user.id_usuario
+                and payload.rol_id_rol != current_user.rol_id_rol
+        ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No puedes desactivar tu propio usuario.",
+                detail="No puedes cambiar tu propio rol desde este flujo.",
             )
 
         previous_user = get_user_by_id(db, user_id)
@@ -198,13 +201,13 @@ def update_security_user_status(
     user_id:int,
     payload:UserStatusUpdate,
     db:Session=Depends(get_db),
-    current_user:Usuario=Depends(require_roles("encargadoSeguridad"))
+    current_user:Usuario=Depends(require_permissions("gestionar_usuarios"))
 ):
     try:
-        if user_id == current_user.id_usuario:
+        if user_id == current_user.id_usuario and payload.activo is False:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No puedes eliminar tu propio usuario.",
+                detail="No puedes desactivar tu propio usuario.",
             )
 
         previous_user = get_user_by_id(db, user_id)
@@ -247,25 +250,17 @@ def update_security_user_status(
 
 @router.delete("/{user_id}", status_code=status.HTTP_200_OK)
 def delete_security_user(
-    user_id:int,
-    db:Session=Depends(get_db),
-    current_user:Usuario=Depends(require_roles("encargadoSeguridad"))
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(
+        require_permissions("gestionar_usuarios")
+    ),
 ):
     try:
-        if (
-            user_id == current_user.id_usuario
-            and payload.rol_id_rol is not None
-            and payload.rol_id_rol != current_user.rol_id_rol
-        ):
+        if user_id == current_user.id_usuario:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No puedes cambiar tu propio rol desde este flujo.",
-            )
-
-        if user_id == current_user.id_usuario and payload.activo is False:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No puedes desactivar tu propio usuario.",
+                detail="No puedes eliminar tu propio usuario.",
             )
 
         previous_user = get_user_by_id(db, user_id)
@@ -278,10 +273,7 @@ def delete_security_user(
                 "activo": previous_user.activo,
             }
 
-        delete_user(
-            db,
-            user_id
-        )
+        delete_user(db, user_id)
 
         registrar_evento(
             db=db,
@@ -298,11 +290,10 @@ def delete_security_user(
         )
 
         return {
-            "message":"Usuario eliminado correctamente."
+            "message": "Usuario eliminado correctamente."
         }
 
     except ValueError as e:
-
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
@@ -313,7 +304,7 @@ def delete_security_user(
 def send_credentials_placeholder(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_roles("encargadoSeguridad")),
+    current_user: Usuario = Depends(require_permissions("gestionar_usuarios"))
 ):
     user = get_user_by_id(db, user_id)
     if not user:
@@ -329,7 +320,7 @@ def send_credentials_placeholder(
 def unlock_security_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_roles("encargadoSeguridad")),
+    current_user: Usuario = Depends(require_permissions("gestionar_usuarios"))
 ):
     user = get_user_by_id(db, user_id)
     if not user:

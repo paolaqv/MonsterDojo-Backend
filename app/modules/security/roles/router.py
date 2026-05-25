@@ -5,7 +5,7 @@ from app.db.session import get_db
 
 from app.logs.activity.service import registrar_evento
 
-from app.modules.auth.permissions import require_roles
+from app.modules.auth.permissions import require_permissions
 from app.modules.users.model import Usuario
 
 from app.modules.security.roles.schemas import (
@@ -24,7 +24,7 @@ from app.modules.security.roles.service import (
     update_role
 )
 
-
+#mediacion completa: roles validados por permisos
 router=APIRouter(
     prefix="/roles",
     tags=["Roles"]
@@ -34,7 +34,7 @@ router=APIRouter(
 @router.get("/",response_model=list[RoleRead])
 def read_roles(
     db:Session=Depends(get_db),
-    _:Usuario=Depends(require_roles("encargadoSeguridad"))
+    _: Usuario = Depends(require_permissions("ver_usuarios"))
 ):
     return get_all_roles(db)
 
@@ -42,7 +42,7 @@ def read_roles(
 @router.get("/permissions",response_model=list[PermissionRead])
 def read_permissions(
     db:Session=Depends(get_db),
-    _:Usuario=Depends(require_roles("encargadoSeguridad"))
+    _: Usuario = Depends(require_permissions("ver_usuarios"))
 ):
     return get_all_permissions(db)
 
@@ -51,7 +51,7 @@ def read_permissions(
 def read_role(
     role_id:str,
     db:Session=Depends(get_db),
-    _:Usuario=Depends(require_roles("encargadoSeguridad"))
+    _: Usuario = Depends(require_permissions("ver_usuarios"))
 ):
     role=get_role_by_id(db,role_id)
 
@@ -68,7 +68,9 @@ def read_role(
 def create_new_role(
     payload:RoleCreate,
     db:Session=Depends(get_db),
-    current_user:Usuario=Depends(require_roles("encargadoSeguridad"))
+    current_user: Usuario = Depends(
+        require_permissions("gestionar_roles")
+    )
 ):
     try:
 
@@ -106,7 +108,9 @@ def update_existing_role(
     role_id:str,
     payload:RoleUpdate,
     db:Session=Depends(get_db),
-    current_user:Usuario=Depends(require_roles("encargadoSeguridad"))
+    current_user: Usuario = Depends(
+        require_permissions("gestionar_roles")
+    )
 ):
     try:
         previous_role = get_role_by_id(db, role_id)
@@ -152,7 +156,9 @@ def update_existing_role(
 def delete_existing_role(
     role_id:str,
     db:Session=Depends(get_db),
-    current_user:Usuario=Depends(require_roles("encargadoSeguridad"))
+    current_user: Usuario = Depends(
+        require_permissions("gestionar_roles")
+    )
 ):
     try:
         previous_role = get_role_by_id(db, role_id)
