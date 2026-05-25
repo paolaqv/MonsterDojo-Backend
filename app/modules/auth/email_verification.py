@@ -23,11 +23,19 @@ class EmailVerificationToken(Base):
 
 def send_email_verification_code(db: Session, correo: str) -> dict:
     normalized_email = correo.strip().lower()
-
-    if exists_email_or_contact_email(db, normalized_email):
-        raise ValueError("El correo ingresado ya está registrado en el sistema.")
-
     code = f"{secrets.randbelow(1000000):06d}"
+
+    previous_tokens_stmt = (
+        select(EmailVerificationToken)
+        .where(func.lower(EmailVerificationToken.correo) == normalized_email)
+        .where(EmailVerificationToken.usado == False)
+    )
+
+    previous_tokens = db.scalars(previous_tokens_stmt).all()
+
+    for previous_token in previous_tokens:
+        previous_token.usado = True
+        db.add(previous_token)
 
     token = EmailVerificationToken(
         correo=normalized_email,
@@ -50,7 +58,6 @@ def send_email_verification_code(db: Session, correo: str) -> dict:
     )
 
     return {"message": "Código de verificación enviado correctamente."}
-
 
 def verify_email_code(db: Session, correo: str, codigo: str) -> dict:
     normalized_email = correo.strip().lower()

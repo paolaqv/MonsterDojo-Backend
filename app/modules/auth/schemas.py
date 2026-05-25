@@ -4,6 +4,7 @@ from app.modules.users.schemas import CurrentUserWithPermissionsRead, UserRead
 
 class LoginRequest(BaseModel):
     correo: EmailStr
+    recaptcha_token: str
     password: str = Field(..., min_length=1, max_length=256)
 
 

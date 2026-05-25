@@ -12,7 +12,11 @@ from app.modules.security.passwords.service import (
     verify_password_reset_code,
 )
 from app.modules.users.model import Usuario
-from app.modules.users.service import get_user_by_email, get_user_permissions
+from app.modules.users.service import (
+    get_user_by_email,
+    get_user_by_contact_email,
+    get_user_permissions,
+)
 def _validate_password_length(password: str) -> None:
     if len(password.encode("utf-8")) > 72:
         raise ValueError("La contraseña no puede superar 72 bytes en UTF-8.")
@@ -202,31 +206,46 @@ logger = logging.getLogger(__name__)
 
 def request_password_recovery(db: Session, email: str, app_debug: bool = False) -> dict:
     normalized_email = email.strip().lower()
-    user = get_user_by_email(db, normalized_email)
+
+    # Recuperación usa correo real de contacto, no correo de acceso.
+    user = get_user_by_contact_email(db, normalized_email)
 
     if not user:
-        raise ValueError("No existe una cuenta registrada con ese correo electrónico.")
+        raise ValueError("No existe una cuenta registrada con ese correo de contacto.")
 
     if not user.is_active or not user.activo:
-        raise ValueError("La cuenta asociada a ese correo está inactiva.")
+        raise ValueError("La cuenta asociada a ese correo de contacto está inactiva.")
+
+    if not user.correo_contacto:
+        raise ValueError("La cuenta no tiene un correo de contacto configurado.")
 
     code = generate_password_reset_code(db, user)
     subject, html_body, text_body = build_password_recovery_email(user.nombre, code)
 
     try:
-        logger.info("Intentando enviar código de recuperación a: %s", user.correo)
+        logger.info(
+            "Intentando enviar código de recuperación al correo de contacto: %s",
+            user.correo_contacto,
+        )
 
         send_email(
-            to_email=user.correo,
+            to_email=user.correo_contacto,
             subject=subject,
             html_body=html_body,
             text_body=text_body,
         )
 
-        logger.info("Código de recuperación enviado correctamente a: %s", user.correo)
+        logger.info(
+            "Código de recuperación enviado correctamente al correo de contacto: %s",
+            user.correo_contacto,
+        )
 
     except Exception as e:
-        logger.exception("Error enviando correo de recuperación a %s: %s", user.correo, str(e))
+        logger.exception(
+            "Error enviando correo de recuperación a %s: %s",
+            user.correo_contacto,
+            str(e),
+        )
 
         if app_debug:
             return {
@@ -234,31 +253,39 @@ def request_password_recovery(db: Session, email: str, app_debug: bool = False) 
                 "debug_code": code,
             }
 
-        raise ValueError("No se pudo enviar el código de recuperación al correo electrónico.")
+        raise ValueError("No se pudo enviar el código de recuperación al correo de contacto.")
 
-    response = {"message": "Se envió un código de recuperación al correo registrado."}
+    response = {
+        "message": "Se envió un código de recuperación al correo de contacto registrado."
+    }
 
     if app_debug:
         response["debug_code"] = code
 
     return response
 
+
 def verify_recovery_code(db: Session, email: str, code: str) -> dict:
     normalized_email = email.strip().lower()
-    user = get_user_by_email(db, normalized_email)
+
+    # Recuperación usa correo de contacto.
+    user = get_user_by_contact_email(db, normalized_email)
 
     if not user:
-        raise ValueError("No existe una cuenta registrada con ese correo electrónico.")
+        raise ValueError("No existe una cuenta registrada con ese correo de contacto.")
 
     verify_password_reset_code(db, user, code)
     return {"message": "Código verificado correctamente."}
 
+
 def reset_password_with_code(db: Session, email: str, code: str, new_password: str) -> dict:
     normalized_email = email.strip().lower()
-    user = get_user_by_email(db, normalized_email)
+
+    # Recuperación usa correo de contacto.
+    user = get_user_by_contact_email(db, normalized_email)
 
     if not user:
-        raise ValueError("No existe una cuenta registrada con ese correo electrónico.")
+        raise ValueError("No existe una cuenta registrada con ese correo de contacto.")
 
     verify_password_reset_code(db, user, code)
     apply_new_password(db, user, new_password)

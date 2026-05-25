@@ -198,7 +198,7 @@ def update_user(db: Session, user_id: int, user_data: UserUpdate) -> Usuario:
     if new_role == "cliente":
         if user_data.correo is not None:
             normalized_email = user_data.correo.strip().lower()
-            if repository.exists_email_or_contact_email(db, normalized_email):
+            if repository.exists_email_or_contact_email(db, normalized_email, exclude_user_id=user_id):
                 raise ValueError("Ese correo electrónico ya está registrado.")
             user_data = user_data.model_copy(update={"correo": normalized_email})
 
@@ -305,3 +305,7 @@ def _generate_temporary_password(length: int = 12) -> str:
             and any(c in "#$%&*" for c in password)
         ):
             return password
+
+def get_user_by_contact_email(db: Session, email: str) -> Usuario | None:
+    return repository.get_user_by_contact_email(db, email.strip().lower())
+

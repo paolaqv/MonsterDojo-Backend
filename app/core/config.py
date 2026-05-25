@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     trusted_hosts: str = "localhost,127.0.0.1"
     security_headers_enabled: bool = True
 
+    recaptcha_secret_key: str | None = None
+    recaptcha_verify_url: str = "https://www.google.com/recaptcha/api/siteverify"
     smtp_host: str | None = None
     smtp_port: int = 587
     smtp_user: str | None = None
