@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.logs.activity.service import registrar_evento
+from app.logs.application.service import registrar_aplicacion
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.permissions import require_any_permission, require_permissions
 from app.modules.tables.schemas import AvailableTableResponse
@@ -30,9 +31,23 @@ def read_tables(
 def create_new_table(
     payload: TableCreate,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_permissions("gestionar_mesas")),
+    current_user: Usuario = Depends(require_permissions("gestionar_mesas")),
 ):
-    return create_table(db, payload)
+    table = create_table(db, payload)
+
+    registrar_aplicacion(
+        db,
+        modulo="mesas",
+        evento="MESA_CREADA",
+        descripcion=f"Usuario {current_user.id_usuario} creo mesa {table.id_mesa} (capacidad {table.capacidad}, ubicacion {table.ubicacion}).",
+        severidad="INFO",
+        estado="OK",
+        usuario_id=current_user.id_usuario,
+        entidad_afectada="mesa",
+        entidad_id=table.id_mesa,
+    )
+
+    return table
 
 
 @router.get("/available", response_model=list[AvailableTableResponse])
@@ -82,10 +97,24 @@ def update_existing_table(
     table_id: int,
     payload: TableUpdate,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_permissions("gestionar_mesas")),
+    current_user: Usuario = Depends(require_permissions("gestionar_mesas")),
 ):
     try:
-        return update_table(db, table_id, payload)
+        table = update_table(db, table_id, payload)
+
+        registrar_aplicacion(
+            db,
+            modulo="mesas",
+            evento="MESA_ACTUALIZADA",
+            descripcion=f"Usuario {current_user.id_usuario} actualizo mesa {table_id}.",
+            severidad="INFO",
+            estado="OK",
+            usuario_id=current_user.id_usuario,
+            entidad_afectada="mesa",
+            entidad_id=table_id,
+        )
+
+        return table
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -115,6 +144,19 @@ def archive_existing_table(
             valor_anterior={"activo": True},
             valor_nuevo={"activo": False},
         )
+
+        registrar_aplicacion(
+            db,
+            modulo="mesas",
+            evento="MESA_ARCHIVADA",
+            descripcion=f"Usuario {current_user.id_usuario} archivo (desactivo) la mesa {table_id}.",
+            severidad="WARN",
+            estado="OK",
+            usuario_id=current_user.id_usuario,
+            entidad_afectada="mesa",
+            entidad_id=table_id,
+        )
+
         return table
     except ValueError as e:
         raise HTTPException(
@@ -145,6 +187,19 @@ def unarchive_existing_table(
             valor_anterior={"activo": False},
             valor_nuevo={"activo": True},
         )
+
+        registrar_aplicacion(
+            db,
+            modulo="mesas",
+            evento="MESA_REACTIVADA",
+            descripcion=f"Usuario {current_user.id_usuario} reactivo la mesa {table_id}.",
+            severidad="INFO",
+            estado="OK",
+            usuario_id=current_user.id_usuario,
+            entidad_afectada="mesa",
+            entidad_id=table_id,
+        )
+
         return table
     except ValueError as e:
         raise HTTPException(

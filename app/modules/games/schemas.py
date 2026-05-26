@@ -28,7 +28,7 @@ class GameBase(BaseModel):
     precio_alquiler: float = Field(..., ge=0, le=100000)
     precio_venta: float = Field(..., ge=0, le=100000)
     disponible_venta: bool
-    imagen: str = Field(..., min_length=1, max_length=255)
+    imagen: str = Field(..., min_length=1, max_length=2000)
     activo: bool = True
     categoria_juego_id_catJuego: int = Field(..., ge=1)
 
@@ -48,7 +48,7 @@ class GameUpdate(BaseModel):
     precio_alquiler: float | None = Field(default=None, ge=0, le=100000)
     precio_venta: float | None = Field(default=None, ge=0, le=100000)
     disponible_venta: bool | None = None
-    imagen: str | None = Field(default=None, min_length=1, max_length=255)
+    imagen: str | None = Field(default=None, min_length=1, max_length=2000)
     activo: bool | None = None
     categoria_juego_id_catJuego: int | None = Field(default=None, ge=1)
 
