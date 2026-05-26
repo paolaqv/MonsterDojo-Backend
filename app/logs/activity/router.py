@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.logs.activity.repository import obtener_logs
 from app.logs.activity.schemas import ActivityLogOut
-from app.modules.auth.permissions import require_permissions
+from app.modules.auth.permissions import require_roles
 from app.modules.users.model import Usuario
 from app.shared.validation import sanitize_plain_text
 
@@ -24,7 +24,7 @@ def ver_logs(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_permissions("ver_auditoria")),
+    _: Usuario = Depends(require_roles("encargadoSeguridad")),
 ):
     return obtener_logs(
         db,

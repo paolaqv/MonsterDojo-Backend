@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from app.modules.users.model import Rol, Usuario
 from app.modules.security.roles.model import Permiso, RolPermiso
 
-#mediacion completa, evitar permisos inactivos a roles
+
 def _validate_permission_ids(db: Session, permission_ids: list[str]) -> None:
     if not permission_ids:
         return
@@ -10,25 +10,18 @@ def _validate_permission_ids(db: Session, permission_ids: list[str]) -> None:
     existing = {
         permission.id_permiso
         for permission in db.query(Permiso)
-        .filter(
-            Permiso.id_permiso.in_(permission_ids),
-            Permiso.activo.is_(True),
-        )
+        .filter(Permiso.id_permiso.in_(permission_ids))
         .all()
     }
 
-    missing_or_inactive = sorted(set(permission_ids) - existing)
-    if missing_or_inactive:
-        raise ValueError(
-            f"Permisos inexistentes o inactivos: {', '.join(missing_or_inactive)}."
-        )
+    missing = sorted(set(permission_ids) - existing)
+    if missing:
+        raise ValueError(f"Permisos inexistentes: {', '.join(missing)}.")
+
 
 def get_all_permissions(db: Session):
-    return (
-        db.query(Permiso)
-        .filter(Permiso.activo.is_(True))
-        .all()
-    )
+    return db.query(Permiso).all()
+
 
 def get_all_roles(db: Session):
     roles = db.query(Rol).all()
@@ -71,40 +64,33 @@ def get_role_by_id(db: Session, role_id: str):
 
 
 def create_role(db: Session, payload):
-    role_id = payload.id_rol.strip()
-    role_name = payload.nombre.strip()
-    permisos = payload.permisos or []
-
-    existing = db.query(Rol).filter(Rol.id_rol == role_id).first()
+    existing = db.query(Rol).filter(Rol.id_rol == payload.id_rol).first()
     if existing:
         raise ValueError("El rol ya existe.")
 
-    _validate_permission_ids(db, permisos)
+    _validate_permission_ids(db, payload.permisos)
 
     role = Rol(
-        id_rol=role_id,
-        nombre=role_name,
+        id_rol=payload.id_rol,
+        nombre=payload.nombre,
         activo=payload.activo,
     )
 
     try:
         db.add(role)
 
-        db.flush()
-        for permiso_id in permisos:
-            db.add(
-                RolPermiso(
-                    rol_id_rol=role_id,
-                    permiso_id_permiso=permiso_id,
-                )
-            )
+        for permiso_id in payload.permisos:
+            db.add(RolPermiso(
+                rol_id_rol=payload.id_rol,
+                permiso_id_permiso=permiso_id,
+            ))
 
         db.commit()
     except Exception:
         db.rollback()
         raise
 
-    return get_role_by_id(db, role_id)
+    return get_role_by_id(db, payload.id_rol)
 
 
 def update_role(db: Session, role_id: str, payload):

@@ -13,9 +13,9 @@ from app.modules.security.passwords.service import (
     get_active_password_policy,
     validate_password_against_policy,
 )
-from app.modules.security.roles.model import Permiso, RolPermiso
+from app.modules.security.roles.model import RolPermiso
 from app.modules.users import repository
-from app.modules.users.model import Rol, Usuario
+from app.modules.users.model import Usuario
 from app.modules.users.schemas import UserCreate, UserUpdate
 
 
@@ -255,22 +255,10 @@ def get_user_permissions(db: Session, user_id: int) -> list[str]:
     user = repository.get_user_by_id(db, user_id)
     if not user:
         raise ValueError("Usuario no encontrado.")
-#mediacion completa. comprueba permiso del usuario, estado de permiso y rol
+
     permisos = (
         db.query(RolPermiso.permiso_id_permiso)
-        .join(
-            Permiso,
-            Permiso.id_permiso == RolPermiso.permiso_id_permiso,
-        )
-        .join(
-            Rol,
-            Rol.id_rol == RolPermiso.rol_id_rol,
-        )
-        .filter(
-            RolPermiso.rol_id_rol == user.rol_id_rol,
-            Rol.activo.is_(True),
-            Permiso.activo.is_(True),
-        )
+        .filter(RolPermiso.rol_id_rol == user.rol_id_rol)
         .all()
     )
 

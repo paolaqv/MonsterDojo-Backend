@@ -50,17 +50,5 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="El usuario está inactivo.",
         )
-#mediacion completa
-    if user.bloqueado:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="La cuenta del usuario se encuentra bloqueada.",
-        )
-
-    if user.rol is None or not user.rol.activo:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="El rol asignado al usuario se encuentra inactivo.",
-        )
 
     return user
