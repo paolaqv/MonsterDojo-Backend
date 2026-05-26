@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.logs.activity.service import registrar_evento
+from app.logs.application.service import registrar_aplicacion
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.permissions import (
     require_any_permission,
@@ -140,7 +141,21 @@ def create_new_reservation(
                 detail="No tienes permisos para crear reservas para otro usuario.",
             )
 
-        return create_reservation(db, payload)
+        reservation = create_reservation(db, payload)
+
+        registrar_aplicacion(
+            db,
+            modulo="reservas",
+            evento="RESERVA_CREADA",
+            descripcion=f"Usuario {current_user.id_usuario} creo reserva {reservation.id_reserva} en mesa {reservation.mesa_id_mesa}.",
+            severidad="INFO",
+            estado="OK",
+            usuario_id=current_user.id_usuario,
+            entidad_afectada="reserva",
+            entidad_id=reservation.id_reserva,
+        )
+
+        return reservation
     except HTTPException:
         raise
     except ValueError as e:
@@ -204,6 +219,18 @@ def update_existing_reservation(
                 valor_nuevo={"estado": payload.estado},
             )
 
+            registrar_aplicacion(
+                db,
+                modulo="reservas",
+                evento="RESERVA_ESTADO_CAMBIADO",
+                descripcion=f"Reserva {reservation_id} cambio de '{old_state}' a '{payload.estado}' (usuario {current_user.id_usuario}).",
+                severidad="WARN" if payload.estado == "Cancelado" else "INFO",
+                estado="OK",
+                usuario_id=current_user.id_usuario,
+                entidad_afectada="reserva",
+                entidad_id=reservation_id,
+            )
+
         if payload.mesa_id_mesa is not None and payload.mesa_id_mesa != old_table_id:
             registrar_evento(
                 db=db,
@@ -218,6 +245,18 @@ def update_existing_reservation(
                 entidad_id=reservation_id,
                 valor_anterior={"mesa_id_mesa": old_table_id},
                 valor_nuevo={"mesa_id_mesa": payload.mesa_id_mesa},
+            )
+
+            registrar_aplicacion(
+                db,
+                modulo="reservas",
+                evento="RESERVA_MESA_CAMBIADA",
+                descripcion=f"Reserva {reservation_id} cambio de mesa {old_table_id} a mesa {payload.mesa_id_mesa} (usuario {current_user.id_usuario}).",
+                severidad="INFO",
+                estado="OK",
+                usuario_id=current_user.id_usuario,
+                entidad_afectada="reserva",
+                entidad_id=reservation_id,
             )
 
         return updated
@@ -344,7 +383,21 @@ def create_new_reservation_detail(
         )
 
     try:
-        return create_reservation_detail(db, payload)
+        detail_obj = create_reservation_detail(db, payload)
+
+        registrar_aplicacion(
+            db,
+            modulo="reservas",
+            evento="RESERVA_ITEM_AGREGADO",
+            descripcion=f"Producto {payload.producto_id_producto} x{payload.cantidad} agregado a la reserva {payload.reserva_id_reserva}.",
+            severidad="INFO",
+            estado="OK",
+            usuario_id=current_user.id_usuario,
+            entidad_afectada="detalle_reserva",
+            entidad_id=detail_obj.id_detalleReserva,
+        )
+
+        return detail_obj
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -359,11 +412,25 @@ def checkout_reservation(
     current_user: Usuario = Depends(get_current_user),
 ):
     try:
-        return create_reservation_checkout(
+        result = create_reservation_checkout(
             db,
             payload=payload,
             current_user=current_user,
         )
+
+        registrar_aplicacion(
+            db,
+            modulo="reservas",
+            evento="RESERVA_CHECKOUT_CREADO",
+            descripcion=f"Usuario {current_user.id_usuario} hizo checkout de reserva {result.id_reserva} en mesa {payload.mesa_id} para {payload.date} {payload.start_time}-{payload.end_time}.",
+            severidad="INFO",
+            estado="OK",
+            usuario_id=current_user.id_usuario,
+            entidad_afectada="reserva",
+            entidad_id=result.id_reserva,
+        )
+
+        return result
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -410,6 +477,18 @@ def update_checkout_reservation(
                 valor_nuevo={"mesa_id_mesa": payload.mesa_id},
             )
 
+        registrar_aplicacion(
+            db,
+            modulo="reservas",
+            evento="RESERVA_CHECKOUT_ACTUALIZADO",
+            descripcion=f"Checkout de reserva {reservation_id} actualizado por usuario {current_user.id_usuario}.",
+            severidad="INFO",
+            estado="OK",
+            usuario_id=current_user.id_usuario,
+            entidad_afectada="reserva",
+            entidad_id=reservation_id,
+        )
+
         return result
     except ValueError as e:
         detail = str(e)
@@ -422,8 +501,8 @@ def update_checkout_reservation(
             status_code=status_code,
             detail=detail,
         )
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al actualizar la reserva: {str(e)}",
+            detail="Error inesperado del sistema",
         )

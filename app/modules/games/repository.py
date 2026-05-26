@@ -61,3 +61,11 @@ def update_game(db: Session, game: Juego, game_data: GameUpdate) -> Juego:
     db.commit()
     db.refresh(game)
     return game
+
+
+def soft_delete_game(db: Session, game: Juego) -> Juego:
+    game.activo = False
+    db.add(game)
+    db.commit()
+    db.refresh(game)
+    return game

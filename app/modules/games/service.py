@@ -48,3 +48,14 @@ def update_game(db: Session, game_id: int, game_data: GameUpdate) -> Juego:
             raise ValueError("La categoría del juego no existe.")
 
     return repository.update_game(db, game, game_data)
+
+
+def soft_delete_game(db: Session, game_id: int) -> Juego:
+    game = repository.get_game_by_id(db, game_id)
+    if not game:
+        raise ValueError("Juego no encontrado.")
+
+    if not game.activo:
+        raise ValueError("El juego ya está inactivo.")
+
+    return repository.soft_delete_game(db, game)

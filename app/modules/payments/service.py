@@ -18,23 +18,26 @@ def create_payment(db: Session, payment_data: PaymentCreate) -> Pago:
     if not user:
         raise ValueError("El usuario no existe.")
 
-    order_detail = repository.get_order_detail_by_id(
-        db, payment_data.detalle_pedido_id_detallePed
-    )
-    if not order_detail:
-        raise ValueError("El detalle de pedido no existe.")
+    if payment_data.detalle_pedido_id_detallePed is not None:
+        order_detail = repository.get_order_detail_by_id(
+            db, payment_data.detalle_pedido_id_detallePed
+        )
+        if not order_detail:
+            raise ValueError("El detalle de pedido no existe.")
 
-    reservation_detail = repository.get_reservation_detail_by_id(
-        db, payment_data.detalle_reserva_id_detalleReserva
-    )
-    if not reservation_detail:
-        raise ValueError("El detalle de reserva no existe.")
+    if payment_data.detalle_reserva_id_detalleReserva is not None:
+        reservation_detail = repository.get_reservation_detail_by_id(
+            db, payment_data.detalle_reserva_id_detalleReserva
+        )
+        if not reservation_detail:
+            raise ValueError("El detalle de reserva no existe.")
 
-    game_rental = repository.get_game_rental_by_id(
-        db, payment_data.registro_juego_id_regJuego
-    )
-    if not game_rental:
-        raise ValueError("El registro de juego no existe.")
+    if payment_data.registro_juego_id_regJuego is not None:
+        game_rental = repository.get_game_rental_by_id(
+            db, payment_data.registro_juego_id_regJuego
+        )
+        if not game_rental:
+            raise ValueError("El registro de juego no existe.")
 
     return repository.create_payment(db, payment_data)
 

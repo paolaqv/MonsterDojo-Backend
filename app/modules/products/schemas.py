@@ -27,7 +27,7 @@ class ProductBase(BaseModel):
     descripcion: str = Field(..., min_length=1, max_length=500)
     precio: float = Field(..., gt=0, le=100000)
     max_personas: int = Field(..., ge=1, le=100)
-    imagen: str = Field(..., min_length=1, max_length=255)
+    imagen: str = Field(..., min_length=1, max_length=2000)
     activo: bool = True
     categoria_producto_id_catProducto: int = Field(..., ge=1)
 
@@ -46,7 +46,7 @@ class ProductUpdate(BaseModel):
     descripcion: str | None = Field(default=None, min_length=1, max_length=500)
     precio: float | None = Field(default=None, gt=0, le=100000)
     max_personas: int | None = Field(default=None, ge=1, le=100)
-    imagen: str | None = Field(default=None, min_length=1, max_length=255)
+    imagen: str | None = Field(default=None, min_length=1, max_length=2000)
     activo: bool | None = None
     categoria_producto_id_catProducto: int | None = Field(default=None, ge=1)
 
