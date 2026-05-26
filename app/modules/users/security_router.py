@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 
 from app.logs.activity.service import registrar_evento
+from app.logs.application.service import registrar_aplicacion
 
 from app.modules.auth.permissions import require_permissions
 from app.modules.auth.schemas import MessageResponse
@@ -58,7 +59,21 @@ def create_security_user(
     _: Usuario = Depends(require_permissions("gestionar_usuarios"))
 ):
     try:
-        return create_user(db, payload)
+        user = create_user(db, payload)
+
+        registrar_aplicacion(
+            db,
+            modulo="usuarios",
+            evento="USUARIO_CREADO",
+            descripcion=f"Encargado de seguridad {current_user.id_usuario} creo usuario {user.id_usuario} ({user.correo}) con rol {user.rol_id_rol}.",
+            severidad="INFO",
+            estado="OK",
+            usuario_id=current_user.id_usuario,
+            entidad_afectada="usuario",
+            entidad_id=user.id_usuario,
+        )
+
+        return user
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -114,6 +129,18 @@ def update_security_user(
                 "rol_id_rol": user.rol_id_rol,
                 "activo": user.activo,
             },
+        )
+
+        registrar_aplicacion(
+            db,
+            modulo="usuarios",
+            evento="USUARIO_EDITADO",
+            descripcion=f"Encargado {current_user.id_usuario} edito usuario {user_id} ({user.correo}).",
+            severidad="INFO",
+            estado="OK",
+            usuario_id=current_user.id_usuario,
+            entidad_afectada="usuario",
+            entidad_id=user_id,
         )
 
         return user
@@ -178,6 +205,18 @@ def update_security_user_role(
             }
         )
 
+        registrar_aplicacion(
+            db,
+            modulo="usuarios",
+            evento="ROL_CAMBIADO",
+            descripcion=f"Encargado {current_user.id_usuario} cambio rol del usuario {user_id}: '{previous_role}' -> '{payload.rol_id_rol}'.",
+            severidad="WARN",
+            estado="OK",
+            usuario_id=current_user.id_usuario,
+            entidad_afectada="usuario",
+            entidad_id=user_id,
+        )
+
         return user
 
     except ValueError as e:
@@ -238,6 +277,19 @@ def update_security_user_status(
             }
         )
 
+        accion_legible = "reactivo" if payload.activo else "desactivo"
+        registrar_aplicacion(
+            db,
+            modulo="usuarios",
+            evento="USUARIO_ESTADO_CAMBIADO",
+            descripcion=f"Encargado {current_user.id_usuario} {accion_legible} al usuario {user_id}.",
+            severidad="WARN" if not payload.activo else "INFO",
+            estado="OK",
+            usuario_id=current_user.id_usuario,
+            entidad_afectada="usuario",
+            entidad_id=user_id,
+        )
+
         return user
 
     except ValueError as e:
@@ -287,6 +339,18 @@ def delete_security_user(
             entidad_afectada="usuario",
             entidad_id=user_id,
             valor_anterior=valor_anterior,
+        )
+
+        registrar_aplicacion(
+            db,
+            modulo="usuarios",
+            evento="USUARIO_ELIMINADO",
+            descripcion=f"Encargado {current_user.id_usuario} elimino usuario {user_id} ({valor_anterior.get('correo') if valor_anterior else 'desconocido'}).",
+            severidad="CRITICA",
+            estado="OK",
+            usuario_id=current_user.id_usuario,
+            entidad_afectada="usuario",
+            entidad_id=user_id,
         )
 
         return {
@@ -344,4 +408,17 @@ def unlock_security_user(
         valor_anterior={"bloqueado": True},
         valor_nuevo={"bloqueado": False},
     )
+
+    registrar_aplicacion(
+        db,
+        modulo="usuarios",
+        evento="USUARIO_DESBLOQUEADO",
+        descripcion=f"Encargado {current_user.id_usuario} desbloqueo cuenta del usuario {user_id} ({user.correo}).",
+        severidad="WARN",
+        estado="OK",
+        usuario_id=current_user.id_usuario,
+        entidad_afectada="usuario",
+        entidad_id=user_id,
+    )
+
     return {"message": "Usuario desbloqueado correctamente."}

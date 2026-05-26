@@ -8,10 +8,13 @@ settings = get_settings()
 
 engine = create_engine(
     settings.database_url,
-    echo=settings.app_debug,
+    echo=False,  # nunca volcar SQL al stdout: ralentiza brutalmente cada request
     future=True,
     pool_pre_ping=True,
-    connect_args={"sslmode":"require"}
+    pool_size=10,
+    max_overflow=20,
+    pool_recycle=1800,
+    connect_args={"sslmode": "require"},
 )
 
 SessionLocal = sessionmaker(
