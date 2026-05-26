@@ -20,9 +20,10 @@ from app.modules.game_rentals.service import (
     get_game_rentals_by_reservation_id,
     update_game_rental,
 )
+from app.modules.reservations.service import get_reservation_by_id
 from app.modules.users.model import Usuario
 
-
+#mediacion completa: proteccion de peticiones en juegos
 router = APIRouter(prefix="/game-rentals", tags=["Game Rentals"])
 
 
@@ -30,8 +31,16 @@ def _can_view_all_rentals(db: Session, current_user: Usuario) -> bool:
     return user_has_any_permission(
         db,
         current_user,
-        "ver_alquileres",
-        "gestionar_alquileres",
+        "ver_reservas_detalle",
+        "gestionar_reservas",
+    )
+
+
+def _can_manage_all_rentals(db: Session, current_user: Usuario) -> bool:
+    return user_has_any_permission(
+        db,
+        current_user,
+        "gestionar_reservas",
     )
 
 
@@ -74,7 +83,7 @@ def read_game_rental(
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permiso para ver este alquiler de juego.",
+            detail="No tienes permiso para consultar este registro de juego.",
         )
 
     return rental
@@ -86,22 +95,24 @@ def read_game_rentals_by_reservation(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
-    try:
-        rentals = get_game_rentals_by_reservation_id(db, reservation_id)
-    except ValueError as e:
+    reservation = get_reservation_by_id(db, reservation_id)
+
+    if not reservation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
+            detail="La reserva no existe.",
         )
 
-    if _can_view_all_rentals(db, current_user):
-        return rentals
+    if (
+        not _can_view_all_rentals(db, current_user)
+        and reservation.usuario_id_usuario != current_user.id_usuario
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para consultar los juegos de esta reserva.",
+        )
 
-    return [
-        rental
-        for rental in rentals
-        if rental.usuario_id_usuario == current_user.id_usuario
-    ]
+    return get_game_rentals_by_reservation_id(db, reservation_id)
 
 
 @router.post("/", response_model=GameRentalRead, status_code=status.HTTP_201_CREATED)
@@ -110,12 +121,32 @@ def create_new_game_rental(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
-    can_manage_all = user_has_any_permission(db, current_user, "gestionar_alquileres")
+    reservation = get_reservation_by_id(db, payload.reserva_id_reserva)
 
-    if not can_manage_all and payload.usuario_id_usuario != current_user.id_usuario:
+    if not reservation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="La reserva no existe.",
+        )
+
+    can_manage_all = _can_manage_all_rentals(db, current_user)
+
+    if (
+        not can_manage_all
+        and reservation.usuario_id_usuario != current_user.id_usuario
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permiso para registrar alquileres para otro usuario.",
+            detail="No tienes permiso para registrar juegos en esta reserva.",
+        )
+
+    if (
+        not can_manage_all
+        and payload.usuario_id_usuario != current_user.id_usuario
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No puedes registrar juegos para otro usuario.",
         )
 
     try:
@@ -153,17 +184,54 @@ def update_existing_game_rental(
     rental_id: int,
     payload: GameRentalUpdate,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_permissions("gestionar_alquileres")),
+    current_user: Usuario = Depends(get_current_user),
 ):
-    rental_before = get_game_rental_by_id(db, rental_id)
-    snapshot_before = None
-    if rental_before:
-        snapshot_before = {
-            "cantidad": rental_before.cantidad,
-            "precio": rental_before.precio,
-            "juego_id_juego": rental_before.juego_id_juego,
-            "usuario_id_usuario": rental_before.usuario_id_usuario,
-        }
+    rental = get_game_rental_by_id(db, rental_id)
+
+    if not rental:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Registro de juego no encontrado.",
+        )
+
+    can_manage_all = _can_manage_all_rentals(db, current_user)
+
+    if (
+        not can_manage_all
+        and rental.usuario_id_usuario != current_user.id_usuario
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para modificar este registro de juego.",
+        )
+
+    if (
+        not can_manage_all
+        and payload.usuario_id_usuario is not None
+        and payload.usuario_id_usuario != current_user.id_usuario
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No puedes reasignar el registro a otro usuario.",
+        )
+
+    if payload.reserva_id_reserva is not None:
+        new_reservation = get_reservation_by_id(db, payload.reserva_id_reserva)
+
+        if not new_reservation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="La reserva no existe.",
+            )
+
+        if (
+            not can_manage_all
+            and new_reservation.usuario_id_usuario != current_user.id_usuario
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No puedes asociar el registro a una reserva ajena.",
+            )
 
     try:
         rental = update_game_rental(db, rental_id, payload)

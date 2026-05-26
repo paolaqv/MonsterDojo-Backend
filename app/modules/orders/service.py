@@ -43,7 +43,8 @@ def create_order(db: Session, order_data: OrderCreate, current_user) -> Pedido:
             product = repository.get_product_by_id(db, item.id_producto)
             if not product:
                 raise ValueError(f"No existe el producto con id {item.id_producto}.")
-
+            if not product.activo:
+                raise ValueError("El producto seleccionado no está disponible.")
             detail = OrderDetailCreate(
                 cantidad=item.cantidad,
                 precio=product.precio,
@@ -102,12 +103,21 @@ def create_order_detail(db: Session, detail_data: OrderDetailCreate) -> DetalleP
     order = repository.get_order_by_id(db, detail_data.pedido_id_pedido)
     if not order:
         raise ValueError("El pedido no existe.")
+    if order.estado != "Pendiente":
+        raise ValueError("Solo se pueden agregar productos a pedidos pendientes.")
 
     product = repository.get_product_by_id(db, detail_data.producto_id_producto)
     if not product:
         raise ValueError("El producto no existe.")
 
-    detail = repository.create_order_detail(db, detail_data)
+    if not product.activo:
+        raise ValueError("El producto seleccionado no está disponible.")
+
+    safe_detail_data = detail_data.model_copy(
+        update={"precio": product.precio}
+    )
+
+    detail = repository.create_order_detail(db, safe_detail_data)
     db.commit()
     db.refresh(detail)
     return detail

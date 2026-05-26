@@ -9,25 +9,14 @@ _PAYMENT_TARGET_FIELDS = (
     "registro_juego_id_regJuego",
 )
 
-
+#tolerancia de errores,entrada de datos
 class PaymentBase(BaseModel):
     fecha: datetime
-    monto: float = Field(..., ge=0, le=1_000_000)
-    detalle_pedido_id_detallePed: int | None = Field(default=None, ge=1)
-    detalle_reserva_id_detalleReserva: int | None = Field(default=None, ge=1)
-    registro_juego_id_regJuego: int | None = Field(default=None, ge=1)
+    monto: float = Field(..., ge=0, le=1000000)
+    detalle_pedido_id_detallePed: int = Field(..., ge=1)
+    detalle_reserva_id_detalleReserva: int = Field(..., ge=1)
+    registro_juego_id_regJuego: int = Field(..., ge=1)
     usuario_id_usuario: int = Field(..., ge=1)
-
-    @model_validator(mode="after")
-    def validate_single_target(self):
-        provided = [
-            field for field in _PAYMENT_TARGET_FIELDS if getattr(self, field) is not None
-        ]
-        if len(provided) != 1:
-            raise ValueError(
-                "Un pago debe asociarse a exactamente uno: detalle de pedido, detalle de reserva o registro de juego."
-            )
-        return self
 
 
 class PaymentCreate(PaymentBase):

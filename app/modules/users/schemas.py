@@ -1,7 +1,12 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from app.shared.validation import (
+    ensure_person_name,
+    ensure_valid_phone,
+    ensure_plain_text,
+    ROLE_ID_PATTERN,
+)
 
-from app.shared.validation import ensure_plain_text, ROLE_ID_PATTERN
 class UserBase(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=50)
     primer_apellido: str | None = Field(default=None, max_length=50)
@@ -23,27 +28,50 @@ class UserCreate(BaseModel):
     # Para personal: correo real/contacto validado; el login se genera en backend.
     correo: EmailStr | None = None
     correo_contacto: EmailStr | None = None
-    codigo_verificacion: str | None = Field(default=None, min_length=6, max_length=6)
+    codigo_verificacion: str | None = Field(
+        default=None,
+        min_length=6,
+        max_length=6,
+        pattern=r"^\d{6}$",
+    )
 
-    telefono: int | None = None
+    telefono: int | None = Field(default=None, ge=0, le=999999999999999)
 
     # Para cliente se usa el password que ingresa.
     # Para personal se genera temporal si no llega password.
     password: str | None = Field(default=None, min_length=8, max_length=256)
 
-    rol_id_rol: str = Field(..., min_length=1, max_length=50)
+    rol_id_rol: str = Field(..., min_length=1, max_length=50, pattern=ROLE_ID_PATTERN)
     enviar_credenciales: bool | None = False
 
+    @field_validator("nombre", "primer_apellido", "segundo_apellido", mode="before")
+    @classmethod
+    def validate_names(cls, value, info):
+        return ensure_person_name(value, info.field_name)
+
+    @field_validator("telefono", mode="before")
+    @classmethod
+    def validate_phone(cls, value):
+        return ensure_valid_phone(value)
 
 class UserUpdate(BaseModel):
     nombre: str | None = Field(default=None, min_length=1, max_length=50)
     primer_apellido: str | None = Field(default=None, min_length=1, max_length=50)
     segundo_apellido: str | None = Field(default=None, max_length=50)
     correo: EmailStr | None = None
-    telefono: int | None = None
-    rol_id_rol: str | None = Field(default=None, min_length=1, max_length=50)
+    telefono: int | None = Field(default=None, ge=0, le=999999999999999)
+    rol_id_rol: str | None = Field(default=None, min_length=3, max_length=50,  pattern=ROLE_ID_PATTERN)
     is_active: bool | None = None
     activo: bool | None = None
+    @field_validator("nombre", "primer_apellido", "segundo_apellido", mode="before")
+    @classmethod
+    def validate_names(cls, value, info):
+        return ensure_person_name(value, info.field_name)
+
+    @field_validator("telefono", mode="before")
+    @classmethod
+    def validate_phone(cls, value):
+        return ensure_valid_phone(value)
 
 
 class UserRead(UserBase):
@@ -56,16 +84,21 @@ class UserRead(UserBase):
 
 
 class UserUpdateSelf(BaseModel):
-    nombre: str = Field(..., min_length=1, max_length=50)
-    primer_apellido: str = Field(..., min_length=1, max_length=50)
+    nombre: str | None = Field(default=None, min_length=1, max_length=50)
+    primer_apellido: str | None = Field(default=None, min_length=1, max_length=50)
     segundo_apellido: str | None = Field(default=None, max_length=50)
-    correo: EmailStr
-    telefono: int | None = Field(default=None, ge=0, le=999999999999999)
+    correo: EmailStr | None = None
+    telefono: int | None = None
 
-    @field_validator("nombre", mode="before")
+    @field_validator("nombre", "primer_apellido", "segundo_apellido", mode="before")
     @classmethod
-    def validate_self_text(cls, value):
-        return ensure_plain_text(value, "nombre")
+    def validate_names(cls, value, info):
+        return ensure_person_name(value, info.field_name)
+
+    @field_validator("telefono", mode="before")
+    @classmethod
+    def validate_phone(cls, value):
+        return ensure_valid_phone(value)
 
 
 class UserRoleUpdate(BaseModel):

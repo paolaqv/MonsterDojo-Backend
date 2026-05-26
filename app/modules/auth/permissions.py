@@ -57,6 +57,10 @@ MODULE_ACTION_PERMISSIONS = {
     "rentals:read": "ver_alquileres",
     "rentals:manage": "gestionar_alquileres",
     "users:read": "ver_usuarios",
+    "users:manage": "gestionar_usuarios_roles",
+    "audit:read": "ver_auditoria",
+    "password_policy:read": "ver_politica_contrasenas",
+    "password_policy:manage": "gestionar_politica_contrasenas",
 }
 
 

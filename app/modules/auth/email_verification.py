@@ -23,6 +23,10 @@ class EmailVerificationToken(Base):
 
 def send_email_verification_code(db: Session, correo: str) -> dict:
     normalized_email = correo.strip().lower()
+
+    if exists_email_or_contact_email(db, normalized_email):
+        raise ValueError("El correo electrónico ya está registrado en el sistema.")
+
     code = f"{secrets.randbelow(1000000):06d}"
 
     previous_tokens_stmt = (
@@ -45,21 +49,33 @@ def send_email_verification_code(db: Session, correo: str) -> dict:
         creado_en=datetime.now(timezone.utc),
     )
 
-    db.add(token)
-    db.commit()
-
     subject, html_body, text_body = build_email_verification_email(code)
 
-    send_email(
-        to_email=normalized_email,
-        subject=subject,
-        html_body=html_body,
-        text_body=text_body,
-    )
+    try:
+        db.add(token)
+        db.flush()
+
+        send_email(
+            to_email=normalized_email,
+            subject=subject,
+            html_body=html_body,
+            text_body=text_body,
+        )
+
+        db.commit()
+
+    except Exception:
+        db.rollback()
+        raise ValueError("No se pudo enviar el código de verificación.")
 
     return {"message": "Código de verificación enviado correctamente."}
 
-def verify_email_code(db: Session, correo: str, codigo: str) -> dict:
+def verify_email_code(
+    db: Session,
+    correo: str,
+    codigo: str,
+    commit: bool = True,
+) -> dict:
     normalized_email = correo.strip().lower()
 
     stmt = (
@@ -83,6 +99,10 @@ def verify_email_code(db: Session, correo: str, codigo: str) -> dict:
 
     token.usado = True
     db.add(token)
-    db.commit()
+
+    if commit:
+        db.commit()
+    else:
+        db.flush()
 
     return {"message": "Correo verificado correctamente."}

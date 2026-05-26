@@ -7,7 +7,7 @@ from app.logs.application.service import registrar_aplicacion
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.permissions import (
     require_any_permission,
-    require_roles,
+    require_permissions,
     user_has_any_permission,
 )
 from app.modules.reservations.schemas import (
@@ -74,7 +74,7 @@ def read_reservations_admin(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_roles("encargadoLocal")),
+    _: Usuario = Depends(require_permissions("ver_reservas_detalle"))
 ):
     return get_reservations(
         db,
@@ -88,7 +88,7 @@ def read_reservations_admin(
 def read_reservation_admin(
     reservation_id: int,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_roles("encargadoLocal")),
+    _: Usuario = Depends(require_permissions("ver_reservas_detalle"))
 ):
     reservation = get_reservation_by_id_admin(db, reservation_id)
 
@@ -280,7 +280,7 @@ def update_existing_reservation(
 def read_reservation_details_admin(
     reservation_id: int,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_roles("encargadoLocal")),
+    _: Usuario = Depends(require_permissions("ver_reservas_detalle"))
 ):
     try:
         return get_reservation_details_by_reservation_id_admin(db, reservation_id)
