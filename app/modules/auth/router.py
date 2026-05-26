@@ -34,11 +34,13 @@ from app.modules.auth.service import (
     verify_security_answer,
 )
 
+from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.email_verification import (
     send_email_verification_code,
     verify_email_code,
 )
 
+from app.modules.users.model import Usuario
 from app.modules.users.schemas import UserRead
 from app.modules.users.service import create_user
 
@@ -191,13 +193,36 @@ def change_password_required_endpoint(
     db: Session = Depends(get_db),
 ):
     try:
-        return change_password_required(
+        resultado = change_password_required(
             db,
             payload.correo,
             payload.current_password,
             payload.new_password,
         )
+
+        registrar_evento(
+            db=db,
+            evento="PASSWORD_CAMBIADA",
+            modulo="auth",
+            accion="UPDATE",
+            estado="OK",
+            severidad="ALTA",
+            descripcion=f"El usuario {payload.correo} cambió su contraseña por cambio obligatorio.",
+            entidad_afectada="usuario",
+        )
+
+        return resultado
     except ValueError as e:
+        registrar_evento(
+            db=db,
+            evento="PASSWORD_CAMBIO_FALLIDO",
+            modulo="auth",
+            accion="UPDATE",
+            estado="FALLIDO",
+            severidad="ALTA",
+            descripcion=f"Intento fallido de cambio obligatorio para {payload.correo}: {str(e)}",
+            entidad_afectada="usuario",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -214,12 +239,35 @@ def password_recovery_request(
     db: Session = Depends(get_db),
 ):
     try:
-        return request_password_recovery(
+        resultado = request_password_recovery(
             db,
             payload.correo,
             settings.app_debug,
         )
+
+        registrar_evento(
+            db=db,
+            evento="RECUPERACION_SOLICITADA",
+            modulo="auth",
+            accion="REQUEST",
+            estado="OK",
+            severidad="MEDIA",
+            descripcion=f"Se envió código de recuperación al correo de contacto '{payload.correo}'.",
+            entidad_afectada="usuario",
+        )
+
+        return resultado
     except ValueError as e:
+        registrar_evento(
+            db=db,
+            evento="RECUPERACION_SOLICITUD_FALLIDA",
+            modulo="auth",
+            accion="REQUEST",
+            estado="FALLIDO",
+            severidad="MEDIA",
+            descripcion=f"Solicitud de recuperación para '{payload.correo}' falló: {str(e)}",
+            entidad_afectada="usuario",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -232,12 +280,35 @@ def password_recovery_verify(
     db: Session = Depends(get_db),
 ):
     try:
-        return verify_recovery_code(
+        resultado = verify_recovery_code(
             db,
             payload.correo,
             payload.codigo,
         )
+
+        registrar_evento(
+            db=db,
+            evento="RECUPERACION_VERIFICADA",
+            modulo="auth",
+            accion="VERIFY",
+            estado="OK",
+            severidad="MEDIA",
+            descripcion=f"Código de recuperación verificado correctamente para '{payload.correo}'.",
+            entidad_afectada="usuario",
+        )
+
+        return resultado
     except ValueError as e:
+        registrar_evento(
+            db=db,
+            evento="RECUPERACION_VERIFICACION_FALLIDA",
+            modulo="auth",
+            accion="VERIFY",
+            estado="FALLIDO",
+            severidad="ALTA",
+            descripcion=f"Verificación de código para '{payload.correo}' falló: {str(e)}",
+            entidad_afectada="usuario",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -250,13 +321,36 @@ def password_recovery_reset(
     db: Session = Depends(get_db),
 ):
     try:
-        return reset_password_with_code(
+        resultado = reset_password_with_code(
             db,
             payload.correo,
             payload.codigo,
             payload.new_password,
         )
+
+        registrar_evento(
+            db=db,
+            evento="PASSWORD_RECUPERADA",
+            modulo="auth",
+            accion="UPDATE",
+            estado="OK",
+            severidad="ALTA",
+            descripcion=f"El usuario con correo de contacto '{payload.correo}' restableció su contraseña con código de recuperación.",
+            entidad_afectada="usuario",
+        )
+
+        return resultado
     except ValueError as e:
+        registrar_evento(
+            db=db,
+            evento="PASSWORD_RECUPERACION_FALLIDA",
+            modulo="auth",
+            accion="UPDATE",
+            estado="FALLIDO",
+            severidad="ALTA",
+            descripcion=f"Intento fallido de restablecer contraseña para '{payload.correo}': {str(e)}",
+            entidad_afectada="usuario",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -278,9 +372,33 @@ def request_email_verification(
     payload: EmailVerificationRequest,
     db: Session = Depends(get_db),
 ):
+    correo = str(payload.correo)
     try:
-        return send_email_verification_code(db, str(payload.correo))
+        resultado = send_email_verification_code(db, correo)
+
+        registrar_evento(
+            db=db,
+            evento="EMAIL_VERIFICACION_SOLICITADA",
+            modulo="auth",
+            accion="REQUEST",
+            estado="OK",
+            severidad="MEDIA",
+            descripcion=f"Se envió código de verificación al correo '{correo}'.",
+            entidad_afectada="usuario",
+        )
+
+        return resultado
     except ValueError as e:
+        registrar_evento(
+            db=db,
+            evento="EMAIL_VERIFICACION_FALLIDA",
+            modulo="auth",
+            accion="REQUEST",
+            estado="FALLIDO",
+            severidad="MEDIA",
+            descripcion=f"Solicitud de verificación para '{correo}' falló: {str(e)}",
+            entidad_afectada="usuario",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -292,10 +410,56 @@ def confirm_email_verification(
     payload: EmailVerificationConfirmRequest,
     db: Session = Depends(get_db),
 ):
+    correo = str(payload.correo)
     try:
-        return verify_email_code(db, str(payload.correo), payload.codigo)
+        resultado = verify_email_code(db, correo, payload.codigo)
+
+        registrar_evento(
+            db=db,
+            evento="EMAIL_VERIFICADO",
+            modulo="auth",
+            accion="VERIFY",
+            estado="OK",
+            severidad="MEDIA",
+            descripcion=f"Correo '{correo}' verificado correctamente.",
+            entidad_afectada="usuario",
+        )
+
+        return resultado
     except ValueError as e:
+        registrar_evento(
+            db=db,
+            evento="EMAIL_VERIFICACION_CODIGO_FALLIDO",
+            modulo="auth",
+            accion="VERIFY",
+            estado="FALLIDO",
+            severidad="ALTA",
+            descripcion=f"Verificación de código para '{correo}' falló: {str(e)}",
+            entidad_afectada="usuario",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+
+
+@router.post("/logout", response_model=MessageResponse)
+def logout(
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    registrar_evento(
+        db=db,
+        usuario_id=current_user.id_usuario,
+        rol_id=current_user.rol_id_rol,
+        evento="CIERRE_SESION",
+        modulo="auth",
+        accion="LOGOUT",
+        estado="OK",
+        severidad="MEDIA",
+        descripcion=f"Usuario {current_user.correo} cerró sesión.",
+        entidad_afectada="sesion",
+        entidad_id=current_user.id_usuario,
+    )
+
+    return {"message": "Sesión cerrada correctamente."}
