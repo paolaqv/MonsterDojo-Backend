@@ -22,21 +22,21 @@ class Pago(Base):
     fecha: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     monto: Mapped[float] = mapped_column(Float, nullable=False)
 
-    detalle_pedido_id_detallePed: Mapped[int] = mapped_column(
+    detalle_pedido_id_detallePed: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("detalle_pedido.id_detallePed"),
-        nullable=False,
+        nullable=True,
     )
-    detalle_reserva_id_detalleReserva: Mapped[int] = mapped_column(
+    detalle_reserva_id_detalleReserva: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("detalle_reserva.id_detalleReserva"),
-        nullable=False,
+        nullable=True,
     )
-    registro_juego_id_regJuego: Mapped[int] = mapped_column(
+    registro_juego_id_regJuego: Mapped[int | None] = mapped_column(
         "registro_juego_id_regJuego",
         Integer,
         ForeignKey("registro_juego.id_regJuego"),
-        nullable=False,
+        nullable=True,
     )
     usuario_id_usuario: Mapped[int] = mapped_column(
         Integer,
@@ -50,17 +50,17 @@ class Pago(Base):
         lazy="selectin",
     )
 
-    detalle_pedido: Mapped["DetallePedido"] = relationship(
+    detalle_pedido: Mapped["DetallePedido | None"] = relationship(
         "DetallePedido",
         lazy="selectin",
     )
 
-    detalle_reserva: Mapped["DetalleReserva"] = relationship(
+    detalle_reserva: Mapped["DetalleReserva | None"] = relationship(
         "DetalleReserva",
         lazy="selectin",
     )
 
-    registro_juego: Mapped["RegistroJuego"] = relationship(
+    registro_juego: Mapped["RegistroJuego | None"] = relationship(
         "RegistroJuego",
         lazy="selectin",
     )

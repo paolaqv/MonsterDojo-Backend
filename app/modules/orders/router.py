@@ -3,8 +3,13 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.logs.activity.service import registrar_evento
+from app.logs.application.service import registrar_aplicacion
 from app.modules.auth.dependencies import get_current_user
-from app.modules.auth.permissions import require_permissions, user_has_any_permission
+from app.modules.auth.permissions import (
+    require_any_permission,
+    require_permissions,
+    user_has_any_permission,
+)
 from app.modules.orders.schemas import (
     OrderCreate,
     OrderDetailCreate,
@@ -77,11 +82,37 @@ def read_order(
 def create_new_order(
     payload: OrderCreate,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
+    current_user: Usuario = Depends(
+        require_any_permission("crear_pedidos", "gestionar_pedidos")
+    ),
 ):
     try:
-        return create_order(db, payload, current_user)
+        order = create_order(db, payload, current_user)
+
+        registrar_aplicacion(
+            db,
+            modulo="pedidos",
+            evento="PEDIDO_CREADO",
+            descripcion=f"Usuario {current_user.id_usuario} creo pedido {order.id_pedido} en mesa {order.mesa_id_mesa}.",
+            severidad="INFO",
+            estado="OK",
+            usuario_id=current_user.id_usuario,
+            entidad_afectada="pedido",
+            entidad_id=order.id_pedido,
+        )
+
+        return order
     except ValueError as e:
+        registrar_aplicacion(
+            db,
+            modulo="pedidos",
+            evento="PEDIDO_RECHAZADO",
+            descripcion=str(e),
+            severidad="WARN",
+            estado="FAIL",
+            usuario_id=current_user.id_usuario,
+            entidad_afectada="pedido",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -115,6 +146,18 @@ def update_existing_order(
                 entidad_id=order_id,
                 valor_anterior={"estado": old_state},
                 valor_nuevo={"estado": payload.estado},
+            )
+
+            registrar_aplicacion(
+                db,
+                modulo="pedidos",
+                evento="PEDIDO_ESTADO_CAMBIADO",
+                descripcion=f"Pedido {order_id} cambio de '{old_state}' a '{payload.estado}' (usuario {current_user.id_usuario}).",
+                severidad="INFO" if payload.estado != "Cancelado" else "WARN",
+                estado="OK",
+                usuario_id=current_user.id_usuario,
+                entidad_afectada="pedido",
+                entidad_id=order_id,
             )
 
         return order
@@ -210,7 +253,21 @@ def create_new_order_detail(
         )
 
     try:
-        return create_order_detail(db, payload)
+        detail_obj = create_order_detail(db, payload)
+
+        registrar_aplicacion(
+            db,
+            modulo="pedidos",
+            evento="PEDIDO_ITEM_AGREGADO",
+            descripcion=f"Producto {payload.producto_id_producto} x{payload.cantidad} agregado al pedido {payload.pedido_id_pedido}.",
+            severidad="INFO",
+            estado="OK",
+            usuario_id=current_user.id_usuario,
+            entidad_afectada="detalle_pedido",
+            entidad_id=detail_obj.id_detallePed,
+        )
+
+        return detail_obj
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

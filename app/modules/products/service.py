@@ -52,3 +52,14 @@ def update_product(db: Session, product_id: int, product_data: ProductUpdate) ->
             raise ValueError("La categoría del producto no existe.")
 
     return repository.update_product(db, product, product_data)
+
+
+def soft_delete_product(db: Session, product_id: int) -> Producto:
+    product = repository.get_product_by_id(db, product_id)
+    if not product:
+        raise ValueError("Producto no encontrado.")
+
+    if not product.activo:
+        raise ValueError("El producto ya está inactivo.")
+
+    return repository.soft_delete_product(db, product)
