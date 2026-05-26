@@ -56,10 +56,15 @@ def login(
     db: Session = Depends(get_db)
 ):
     try:
+        print("LOGIN ENDPOINT RECIBIDO =>", payload.model_dump(), flush=True)
+        print("RECAPTCHA TOKEN RECIBIDO =>", payload.recaptcha_token[:30], flush=True)
+
         verify_captcha(
             token=payload.recaptcha_token,
             remote_ip=request.client.host if request.client else None,
         )
+
+        print("RECAPTCHA OK", flush=True)
 
         resultado = login_user(
             db,
@@ -81,6 +86,7 @@ def login(
 
     except ValueError as e:
         mensaje = str(e)
+        print("LOGIN VALUE ERROR =>", mensaje, flush=True)
 
         registrar_evento(
             db=db,
@@ -141,7 +147,9 @@ def register(
 
 
 # =========================================================
-# LEGACY: recuperación débil por pregunta/respuesta-no se usa
+# LEGACY: recuperación débil por pregunta/respuesta
+# Se mantiene temporalmente para no romper el frontend actual.
+# Luego, cuando el nuevo flujo esté listo, puedes retirarlo.
 # =========================================================
 
 @router.post("/security-question", response_model=SecurityQuestionResponse)

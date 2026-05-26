@@ -14,8 +14,7 @@ ROLE_ID_PATTERN = r"^[A-Za-z0-9_-]{3,50}$"
 PERMISSION_ID_PATTERN = r"^[A-Za-z0-9_-]{3,60}$"
 DATE_PATTERN = r"^\d{4}-\d{2}-\d{2}$"
 TIME_PATTERN = r"^([01]\d|2[0-3]):[0-5]\d$"
-NAME_PATTERN = re.compile(r"^[A-Za-zÁÉÍÓÚáéíóúÜüÑñ\s]+$")
-PHONE_PATTERN = re.compile(r"^\d{7,10}$")
+
 
 def normalize_text(value: Any) -> Any:
     if value is None or not isinstance(value, str):
@@ -32,34 +31,6 @@ def ensure_plain_text(value: Any, field_name: str = "campo") -> Any:
 
     return value
 
-def ensure_person_name(value: Any, field_name: str = "campo") -> Any:
-    value = ensure_plain_text(value, field_name)
-
-    if value is None:
-        return value
-
-    if not isinstance(value, str) or not value:
-        raise ValueError(f"{field_name} es obligatorio.")
-
-    if not NAME_PATTERN.fullmatch(value):
-        raise ValueError(f"{field_name} solo debe contener letras y espacios.")
-
-    return value
-
-
-def ensure_valid_phone(value: Any) -> Any:
-    if value is None:
-        return value
-
-    if isinstance(value, bool):
-        raise ValueError("El teléfono debe contener únicamente números.")
-
-    phone = str(value).strip()
-
-    if not PHONE_PATTERN.fullmatch(phone):
-        raise ValueError("El teléfono debe tener entre 7 y 10 dígitos numéricos.")
-
-    return int(phone)
 
 def sanitize_plain_text(value: Any) -> Any:
     value = normalize_text(value)

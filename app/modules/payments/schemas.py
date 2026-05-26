@@ -2,14 +2,14 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-#tolerancia de errores,entrada de datos
+
 class PaymentBase(BaseModel):
     fecha: datetime
-    monto: float = Field(..., ge=0, le=1000000)
-    detalle_pedido_id_detallePed: int = Field(..., ge=1)
-    detalle_reserva_id_detalleReserva: int = Field(..., ge=1)
-    registro_juego_id_regJuego: int = Field(..., ge=1)
-    usuario_id_usuario: int = Field(..., ge=1)
+    monto: float = Field(..., ge=0)
+    detalle_pedido_id_detallePed: int
+    detalle_reserva_id_detalleReserva: int
+    registro_juego_id_regJuego: int
+    usuario_id_usuario: int
 
 
 class PaymentCreate(PaymentBase):

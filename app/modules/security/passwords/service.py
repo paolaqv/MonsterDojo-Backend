@@ -226,7 +226,7 @@ def generate_password_reset_code(db: Session, user: Usuario) -> str:
     )
 
     db.add(token)
-    db.flush()
+    db.commit()
     return code
 
 

@@ -24,21 +24,30 @@ def _validate_password_length(password: str) -> None:
 
 def authenticate_user(db: Session, email: str, password: str) -> Usuario:
     normalized_email = email.strip().lower()
+    print("LOGIN EMAIL =>", normalized_email)
+
     user = get_user_by_email(db, normalized_email)
     policy = get_active_password_policy(db)
 
+    print("USER FOUND =>", user.correo if user else None)
+
     if not user:
+        print("LOGIN FAIL => usuario no encontrado")
         raise ValueError("Credenciales inválidas.")
 
     if not user.is_active or not user.activo:
+        print("LOGIN FAIL => usuario inactivo")
         raise ValueError("El usuario está inactivo.")
 
     if user.bloqueado:
+        print("LOGIN FAIL => usuario bloqueado")
         raise ValueError(
             "Tu cuenta está bloqueada. Debes recuperarla o contactar al encargado de seguridad."
         )
 
     password_ok = verify_password(password, user.password)
+    print("PASSWORD MATCH =>", password_ok)
+    print("HASH STORED =>", user.password)
 
     if not password_ok:
         user.intentos_fallidos += 1
@@ -50,16 +59,19 @@ def authenticate_user(db: Session, email: str, password: str) -> Usuario:
             user.fecha_bloqueo = datetime.now(timezone.utc)
             db.add(user)
             db.commit()
+            print("LOGIN FAIL => cuenta bloqueada")
             raise ValueError("Has excedido el número máximo de intentos. Tu cuenta fue bloqueada.")
 
         db.add(user)
         db.commit()
 
         if remaining == 1:
+            print("LOGIN FAIL => queda un intento")
             raise ValueError(
                 "Credenciales incorrectas. Advertencia: te queda 1 intento antes del bloqueo."
             )
 
+        print("LOGIN FAIL => contraseña no coincide")
         raise ValueError("Credenciales inválidas.")
 
     user.intentos_fallidos = 0
@@ -222,7 +234,7 @@ def request_password_recovery(db: Session, email: str, app_debug: bool = False) 
             html_body=html_body,
             text_body=text_body,
         )
-        db.commit()
+
         logger.info(
             "Código de recuperación enviado correctamente al correo de contacto: %s",
             user.correo_contacto,
@@ -240,8 +252,6 @@ def request_password_recovery(db: Session, email: str, app_debug: bool = False) 
                 "message": "No se pudo enviar el correo real. Se generó un código de depuración.",
                 "debug_code": code,
             }
-        if not app_debug:
-            db.rollback()
 
         raise ValueError("No se pudo enviar el código de recuperación al correo de contacto.")
 
@@ -251,7 +261,6 @@ def request_password_recovery(db: Session, email: str, app_debug: bool = False) 
 
     if app_debug:
         response["debug_code"] = code
-        db.commit()
 
     return response
 
