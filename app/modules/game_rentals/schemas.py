@@ -1,13 +1,14 @@
 from pydantic import BaseModel, ConfigDict, Field
 
+#tolerancia de errores,entrada de datos
 
 class GameRentalBase(BaseModel):
     cantidad: int = Field(..., ge=1)
     precio: float = Field(..., ge=0)
-    tipo: int
-    juego_id_juego: int
-    usuario_id_usuario: int
-    reserva_id_reserva: int
+    tipo: int = Field(..., ge=1)
+    juego_id_juego: int = Field(..., ge=1)
+    usuario_id_usuario: int = Field(..., ge=1)
+    reserva_id_reserva: int = Field(..., ge=1)
 
 
 class GameRentalCreate(GameRentalBase):
