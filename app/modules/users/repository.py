@@ -98,6 +98,9 @@ def exists_email_or_contact_email(
         )
     )
 
+    if exclude_user_id is not None:
+        stmt = stmt.where(Usuario.id_usuario != exclude_user_id)
+
     return db.scalar(stmt) is not None
 
 def get_user_by_contact_email(db: Session, email: str) -> Usuario | None:
