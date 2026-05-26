@@ -26,6 +26,8 @@ def obtener_logs(
     *,
     severidad: str | None = None,
     search: str | None = None,
+    modulo: str | None = None,
+    estado: str | None = None,
     critical_only: bool = False,
     skip: int = 0,
     limit: int = 100,
@@ -36,6 +38,12 @@ def obtener_logs(
         stmt = stmt.where(RegistroActividad.severidad.in_(["ALTA", "CRITICA"]))
     elif severidad:
         stmt = stmt.where(RegistroActividad.severidad == severidad)
+
+    if modulo:
+        stmt = stmt.where(RegistroActividad.modulo.ilike(f"%{modulo}%"))
+
+    if estado:
+        stmt = stmt.where(RegistroActividad.estado.ilike(f"%{estado}%"))
 
     if search:
         term = f"%{search}%"

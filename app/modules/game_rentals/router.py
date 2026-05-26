@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.logs.activity.service import registrar_evento
+from app.logs.application.service import registrar_aplicacion
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.permissions import (
     require_permissions,
@@ -152,23 +152,16 @@ def create_new_game_rental(
     try:
         rental = create_game_rental(db, payload)
 
-        registrar_evento(
-            db=db,
-            usuario_id=current_user.id_usuario,
-            rol_id=current_user.rol_id_rol,
-            evento="ALQUILER_REGISTRADO",
+        registrar_aplicacion(
+            db,
             modulo="alquileres",
-            accion="CREATE",
+            evento="ALQUILER_REGISTRADO",
+            descripcion=f"Usuario {current_user.id_usuario} registro alquiler de juego {rental.juego_id_juego} (cantidad {rental.cantidad}, precio {rental.precio}).",
+            severidad="INFO",
             estado="OK",
-            severidad="MEDIA",
+            usuario_id=current_user.id_usuario,
             entidad_afectada="registro_juego",
             entidad_id=rental.id_regJuego,
-            valor_nuevo={
-                "juego_id_juego": rental.juego_id_juego,
-                "cantidad": rental.cantidad,
-                "precio": rental.precio,
-                "usuario_id_usuario": rental.usuario_id_usuario,
-            },
         )
 
         return rental
@@ -236,24 +229,16 @@ def update_existing_game_rental(
     try:
         rental = update_game_rental(db, rental_id, payload)
 
-        registrar_evento(
-            db=db,
-            usuario_id=current_user.id_usuario,
-            rol_id=current_user.rol_id_rol,
-            evento="ALQUILER_ACTUALIZADO",
+        registrar_aplicacion(
+            db,
             modulo="alquileres",
-            accion="UPDATE",
+            evento="ALQUILER_ACTUALIZADO",
+            descripcion=f"Usuario {current_user.id_usuario} actualizo alquiler {rental_id} (juego {rental.juego_id_juego}, cantidad {rental.cantidad}).",
+            severidad="INFO",
             estado="OK",
-            severidad="MEDIA",
+            usuario_id=current_user.id_usuario,
             entidad_afectada="registro_juego",
             entidad_id=rental_id,
-            valor_anterior=snapshot_before,
-            valor_nuevo={
-                "cantidad": rental.cantidad,
-                "precio": rental.precio,
-                "juego_id_juego": rental.juego_id_juego,
-                "usuario_id_usuario": rental.usuario_id_usuario,
-            },
         )
 
         return rental

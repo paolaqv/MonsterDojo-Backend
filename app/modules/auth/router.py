@@ -7,7 +7,6 @@ from app.db.session import get_db
 from fastapi import Request
 from app.modules.auth.captcha import  verify_captcha
 from app.logs.activity.service import registrar_evento
-from app.logs.application.service import registrar_aplicacion
 from app.modules.auth.schemas import (
     LoginRequest,
     MessageResponse,
@@ -68,29 +67,20 @@ def login(
             payload.password
         )
 
-        registrar_evento(
-            db=db,
-            evento="LOGIN_EXITOSO",
-            modulo="auth",
-            accion="LOGIN",
-            estado="OK",
-            severidad="MEDIA",
-            descripcion="Inicio de sesión correcto"
-        )
-
         user_obj = resultado.get("user") if isinstance(resultado, dict) else None
         user_id_login = (
             user_obj.get("id_usuario") if isinstance(user_obj, dict) else None
         )
 
-        registrar_aplicacion(
-            db,
-            modulo="auth",
-            evento="LOGIN_EXITOSO",
-            descripcion=f"Usuario {payload.correo} inicio sesion correctamente.",
-            severidad="INFO",
-            estado="OK",
+        registrar_evento(
+            db=db,
             usuario_id=user_id_login,
+            evento="LOGIN_EXITOSO",
+            modulo="auth",
+            accion="LOGIN",
+            estado="OK",
+            severidad="MEDIA",
+            descripcion=f"Usuario {payload.correo} inicio sesion correctamente.",
             entidad_afectada="sesion",
         )
 
@@ -106,16 +96,7 @@ def login(
             accion="LOGIN",
             estado="FALLIDO",
             severidad="ALTA",
-            descripcion=mensaje
-        )
-
-        registrar_aplicacion(
-            db,
-            modulo="auth",
-            evento="LOGIN_FALLIDO",
-            descripcion=f"Intento fallido de login para correo '{payload.correo}': {mensaje}",
-            severidad="WARN",
-            estado="FAIL",
+            descripcion=f"Intento fallido para correo '{payload.correo}': {mensaje}",
             entidad_afectada="sesion",
         )
 

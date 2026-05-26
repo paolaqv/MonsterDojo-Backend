@@ -31,7 +31,7 @@ def obtener_logs_aplicacion(
         stmt = stmt.where(RegistroAplicacion.severidad == severidad)
 
     if modulo:
-        stmt = stmt.where(RegistroAplicacion.modulo == modulo)
+        stmt = stmt.where(RegistroAplicacion.modulo.ilike(f"%{modulo}%"))
 
     if estado:
         stmt = stmt.where(RegistroAplicacion.estado == estado)

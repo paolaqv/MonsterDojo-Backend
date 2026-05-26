@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.logs.activity.service import registrar_evento
 from app.logs.application.service import registrar_aplicacion
 from app.modules.auth.permissions import require_permissions
 from app.modules.games.schemas import (
@@ -26,17 +25,6 @@ from app.modules.users.model import Usuario
 router = APIRouter(prefix="/games", tags=["Games"])
 
 
-def _game_snapshot(game) -> dict:
-    return {
-        "nombre": game.nombre,
-        "precio_alquiler": game.precio_alquiler,
-        "precio_venta": game.precio_venta,
-        "disponible_venta": game.disponible_venta,
-        "activo": game.activo,
-        "categoria_juego_id_catJuego": game.categoria_juego_id_catJuego,
-    }
-
-
 @router.get("/categories", response_model=list[GameCategoryRead])
 def read_game_categories(
     skip: int = Query(default=0, ge=0),
@@ -58,20 +46,6 @@ def create_new_game_category(
     current_user: Usuario = Depends(require_permissions("gestionar_juegos")),
 ):
     category = create_game_category(db, payload)
-
-    registrar_evento(
-        db=db,
-        usuario_id=current_user.id_usuario,
-        rol_id=current_user.rol_id_rol,
-        evento="CATEGORIA_JUEGO_CREADA",
-        modulo="juegos",
-        accion="CREATE",
-        estado="OK",
-        severidad="INFO",
-        entidad_afectada="categoria_juego",
-        entidad_id=category.id_catJuego,
-        valor_nuevo={"nombre": category.nombre},
-    )
 
     registrar_aplicacion(
         db,
@@ -124,20 +98,6 @@ def create_new_game(
     try:
         game = create_game(db, payload)
 
-        registrar_evento(
-            db=db,
-            usuario_id=current_user.id_usuario,
-            rol_id=current_user.rol_id_rol,
-            evento="JUEGO_CREADO",
-            modulo="juegos",
-            accion="CREATE",
-            estado="OK",
-            severidad="MEDIA",
-            entidad_afectada="juego",
-            entidad_id=game.id_juego,
-            valor_nuevo=_game_snapshot(game),
-        )
-
         registrar_aplicacion(
             db,
             modulo="juegos",
@@ -165,26 +125,8 @@ def update_existing_game(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(require_permissions("gestionar_juegos")),
 ):
-    game_before = get_game_by_id(db, game_id)
-    snapshot_before = _game_snapshot(game_before) if game_before else None
-
     try:
         game = update_game(db, game_id, payload)
-
-        registrar_evento(
-            db=db,
-            usuario_id=current_user.id_usuario,
-            rol_id=current_user.rol_id_rol,
-            evento="JUEGO_ACTUALIZADO",
-            modulo="juegos",
-            accion="UPDATE",
-            estado="OK",
-            severidad="MEDIA",
-            entidad_afectada="juego",
-            entidad_id=game_id,
-            valor_anterior=snapshot_before,
-            valor_nuevo=_game_snapshot(game),
-        )
 
         registrar_aplicacion(
             db,
@@ -220,21 +162,6 @@ def delete_existing_game(
 ):
     try:
         game = soft_delete_game(db, game_id)
-
-        registrar_evento(
-            db=db,
-            usuario_id=current_user.id_usuario,
-            rol_id=current_user.rol_id_rol,
-            evento="JUEGO_DESACTIVADO",
-            modulo="juegos",
-            accion="DELETE",
-            estado="OK",
-            severidad="ALTA",
-            entidad_afectada="juego",
-            entidad_id=game_id,
-            valor_anterior={"activo": True},
-            valor_nuevo={"activo": False},
-        )
 
         registrar_aplicacion(
             db,

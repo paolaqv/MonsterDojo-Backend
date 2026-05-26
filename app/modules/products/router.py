@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.logs.activity.service import registrar_evento
 from app.logs.application.service import registrar_aplicacion
 from app.modules.auth.permissions import require_permissions
 from app.modules.products.schemas import (
@@ -26,16 +25,6 @@ from app.modules.users.model import Usuario
 router = APIRouter(prefix="/products", tags=["Products"])
 
 
-def _product_snapshot(product) -> dict:
-    return {
-        "nombre": product.nombre,
-        "precio": product.precio,
-        "max_personas": product.max_personas,
-        "activo": product.activo,
-        "categoria_producto_id_catProducto": product.categoria_producto_id_catProducto,
-    }
-
-
 @router.get("/categories", response_model=list[ProductCategoryRead])
 def read_product_categories(
     skip: int = Query(default=0, ge=0),
@@ -57,20 +46,6 @@ def create_new_product_category(
     current_user: Usuario = Depends(require_permissions("gestionar_productos")),
 ):
     category = create_product_category(db, payload)
-
-    registrar_evento(
-        db=db,
-        usuario_id=current_user.id_usuario,
-        rol_id=current_user.rol_id_rol,
-        evento="CATEGORIA_PRODUCTO_CREADA",
-        modulo="productos",
-        accion="CREATE",
-        estado="OK",
-        severidad="INFO",
-        entidad_afectada="categoria_producto",
-        entidad_id=category.id_catProducto,
-        valor_nuevo={"nombre": category.nombre},
-    )
 
     registrar_aplicacion(
         db,
@@ -123,20 +98,6 @@ def create_new_product(
     try:
         product = create_product(db, payload)
 
-        registrar_evento(
-            db=db,
-            usuario_id=current_user.id_usuario,
-            rol_id=current_user.rol_id_rol,
-            evento="PRODUCTO_CREADO",
-            modulo="productos",
-            accion="CREATE",
-            estado="OK",
-            severidad="MEDIA",
-            entidad_afectada="producto",
-            entidad_id=product.id_producto,
-            valor_nuevo=_product_snapshot(product),
-        )
-
         registrar_aplicacion(
             db,
             modulo="productos",
@@ -164,26 +125,8 @@ def update_existing_product(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(require_permissions("gestionar_productos")),
 ):
-    product_before = get_product_by_id(db, product_id)
-    snapshot_before = _product_snapshot(product_before) if product_before else None
-
     try:
         product = update_product(db, product_id, payload)
-
-        registrar_evento(
-            db=db,
-            usuario_id=current_user.id_usuario,
-            rol_id=current_user.rol_id_rol,
-            evento="PRODUCTO_ACTUALIZADO",
-            modulo="productos",
-            accion="UPDATE",
-            estado="OK",
-            severidad="MEDIA",
-            entidad_afectada="producto",
-            entidad_id=product_id,
-            valor_anterior=snapshot_before,
-            valor_nuevo=_product_snapshot(product),
-        )
 
         registrar_aplicacion(
             db,
@@ -219,21 +162,6 @@ def delete_existing_product(
 ):
     try:
         product = soft_delete_product(db, product_id)
-
-        registrar_evento(
-            db=db,
-            usuario_id=current_user.id_usuario,
-            rol_id=current_user.rol_id_rol,
-            evento="PRODUCTO_DESACTIVADO",
-            modulo="productos",
-            accion="DELETE",
-            estado="OK",
-            severidad="ALTA",
-            entidad_afectada="producto",
-            entidad_id=product_id,
-            valor_anterior={"activo": True},
-            valor_nuevo={"activo": False},
-        )
 
         registrar_aplicacion(
             db,

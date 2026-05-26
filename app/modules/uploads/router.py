@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.supabase import get_supabase_client
 from app.db.session import get_db
-from app.logs.activity.service import registrar_evento
 from app.logs.application.service import registrar_aplicacion
 from app.modules.auth.permissions import require_any_permission
 from app.modules.users.model import Usuario
@@ -81,25 +80,6 @@ async def upload_image(
 
     if isinstance(public_url, str):
         public_url = public_url.rstrip("?")
-
-    registrar_evento(
-        db=db,
-        usuario_id=current_user.id_usuario,
-        rol_id=current_user.rol_id_rol,
-        evento="IMAGEN_SUBIDA",
-        modulo="uploads",
-        accion="CREATE",
-        estado="OK",
-        severidad="INFO",
-        entidad_afectada=f"imagen_{tipo}",
-        entidad_id=object_path,
-        valor_nuevo={
-            "bucket": bucket,
-            "path": object_path,
-            "bytes": len(contents),
-            "content_type": file.content_type,
-        },
-    )
 
     registrar_aplicacion(
         db,
