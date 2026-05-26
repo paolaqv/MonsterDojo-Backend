@@ -4,8 +4,9 @@ from app.modules.auth.email_verification import verify_email_code
 from sqlalchemy.orm import Session
 import secrets
 import string
+import logging
 from datetime import datetime, timedelta, timezone
-
+logger = logging.getLogger(__name__)
 from app.core.email import send_email
 from app.modules.auth.email_templates import build_credentials_email
 from app.core.security import get_password_hash
@@ -98,7 +99,8 @@ def create_user(db: Session, user_data: UserCreate) -> Usuario:
     role = repository.get_role_by_id(db, user_data.rol_id_rol)
     if not role:
         raise ValueError("El rol especificado no existe.")
-
+    if not role.activo:
+        raise ValueError("No se puede asignar un rol inactivo.")
     policy = get_active_password_policy(db)
 
     # Cliente: usa su correo real como login
@@ -108,9 +110,15 @@ def create_user(db: Session, user_data: UserCreate) -> Usuario:
 
         normalized_email = user_data.correo.strip().lower()
 
-        existing_user = repository.get_user_by_email(db, normalized_email)
-        if existing_user:
+        if repository.exists_email_or_contact_email(db, normalized_email):
             raise ValueError("Ese correo electrónico ya está registrado.")
+
+        verify_email_code(
+            db,
+            normalized_email,
+            user_data.codigo_verificacion,
+            commit=False,
+        )
 
         if not user_data.password:
             raise ValueError("La contraseña es obligatoria.")
@@ -130,7 +138,12 @@ def create_user(db: Session, user_data: UserCreate) -> Usuario:
 
         if not user_data.codigo_verificacion:
             raise ValueError("Debes verificar el correo de contacto antes de crear el usuario.")
-        verify_email_code(db, contact_email, user_data.codigo_verificacion)
+        verify_email_code(
+            db,
+            contact_email,
+            user_data.codigo_verificacion,
+            commit=False,
+        )
 
         # Validación mínima: el correo de contacto no debe estar repetido como contacto
         if repository.exists_email_or_contact_email(db, contact_email):
@@ -165,19 +178,25 @@ def create_user(db: Session, user_data: UserCreate) -> Usuario:
         policy.dias_expiracion,
     )
 
-    if user.rol_id_rol != "cliente":
+    if user.rol_id_rol != "cliente" and user_data.enviar_credenciales:
         subject, html_body, text_body = build_credentials_email(
             user.nombre,
             user.correo,
             final_password,
         )
 
-        send_email(
-            to_email=user.correo_contacto,
-            subject=subject,
-            html_body=html_body,
-            text_body=text_body,
-        )
+        try:
+            send_email(
+                to_email=user.correo_contacto,
+                subject=subject,
+                html_body=html_body,
+                text_body=text_body,
+            )
+        except Exception:
+            logger.exception(
+                "Usuario creado, pero no se pudieron enviar sus credenciales. Usuario ID: %s",
+                user.id_usuario,
+            )
 
     return user
 
@@ -193,7 +212,8 @@ def update_user(db: Session, user_id: int, user_data: UserUpdate) -> Usuario:
         role = repository.get_role_by_id(db, user_data.rol_id_rol)
         if not role:
             raise ValueError("El rol especificado no existe.")
-
+        if not role.activo:
+            raise ValueError("No se puede asignar un rol inactivo.")
     # clientes: correo manual y único
     if new_role == "cliente":
         if user_data.correo is not None:
@@ -234,11 +254,30 @@ def delete_user(db: Session, user_id: int) -> None:
 
 
 def update_current_user(db: Session, current_user: Usuario, payload):
-    current_user.nombre = payload.nombre
-    current_user.primer_apellido = payload.primer_apellido
-    current_user.segundo_apellido = payload.segundo_apellido
-    current_user.correo = payload.correo.strip().lower()
-    current_user.telefono = payload.telefono
+    if payload.nombre is not None:
+        current_user.nombre = payload.nombre.strip()
+
+    if payload.primer_apellido is not None:
+        current_user.primer_apellido = payload.primer_apellido.strip()
+
+    if payload.segundo_apellido is not None:
+        current_user.segundo_apellido = payload.segundo_apellido.strip()
+
+    if payload.correo is not None:
+        normalized_email = payload.correo.strip().lower()
+
+        if repository.exists_email_or_contact_email(
+            db,
+            normalized_email,
+            exclude_user_id=current_user.id_usuario,
+        ):
+            raise ValueError("Ese correo electrónico ya está registrado.")
+
+        current_user.correo = normalized_email
+        current_user.correo_contacto = normalized_email
+
+    if payload.telefono is not None:
+        current_user.telefono = payload.telefono
 
     db.add(current_user)
     db.commit()
@@ -285,7 +324,19 @@ def update_user_role(db: Session, user_id: int, rol_id_rol: str) -> Usuario:
     role = repository.get_role_by_id(db, rol_id_rol)
     if not role:
         raise ValueError("El rol especificado no existe.")
+    if not role.activo:
+        raise ValueError("No se puede asignar un rol inactivo.")
 
+    cambia_tipo_usuario = (
+        (user.rol_id_rol == "cliente" and rol_id_rol != "cliente")
+        or (user.rol_id_rol != "cliente" and rol_id_rol == "cliente")
+    )
+
+    if cambia_tipo_usuario:
+        raise ValueError(
+            "No se puede cambiar entre cliente y personal interno desde la asignación rápida de rol. "
+            "Realiza la modificación completa del usuario."
+        )
     user.rol_id_rol = rol_id_rol
     db.add(user)
     db.commit()

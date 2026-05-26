@@ -64,6 +64,24 @@ def update_reservation(
     reservation = repository.get_reservation_by_id(db, reservation_id)
     if not reservation:
         raise ValueError("Reserva no encontrada.")
+    if reservation_data.fecha_hora is not None:
+        raise ValueError(
+            "La fecha y hora solo pueden modificarse mediante el flujo de edición de reserva."
+        )
+
+    if (
+            reservation_data.mesa_id_mesa is not None
+            and reservation_data.mesa_id_mesa != reservation.mesa_id_mesa
+    ):
+        raise ValueError(
+            "La mesa solo puede modificarse mediante el flujo de edición de reserva."
+        )
+
+    if (
+            reservation_data.usuario_id_usuario is not None
+            and reservation_data.usuario_id_usuario != reservation.usuario_id_usuario
+    ):
+        raise ValueError("No se puede reasignar el usuario de una reserva.")
 
     if reservation_data.estado is not None and reservation_data.estado != reservation.estado:
         allowed_next_states = RESERVATION_ALLOWED_TRANSITIONS.get(reservation.estado, set())
@@ -125,8 +143,17 @@ def create_reservation_detail(
     if not product:
         raise ValueError("El producto no existe.")
 
-    return repository.create_reservation_detail(db, detail_data)
+    if reservation.estado != "Reservado":
+        raise ValueError("Solo se pueden agregar productos a reservas activas.")
 
+    if not product.activo:
+        raise ValueError("El producto seleccionado no está disponible.")
+
+    detail_data = detail_data.model_copy(
+        update={"precio": product.precio}
+    )
+
+    return repository.create_reservation_detail(db, detail_data)
 
 def create_reservation_checkout(
     db: Session,
@@ -173,7 +200,8 @@ def create_reservation_checkout(
             producto = db.get(Producto, item.id_producto)
             if not producto:
                 raise ValueError(f"No existe el producto con id {item.id_producto}.")
-
+            if not producto.activo:
+                raise ValueError("Uno de los productos seleccionados no está disponible.")
             detalle_reserva = DetalleReserva(
                 cantidad=item.cantidad,
                 precio=producto.precio,
@@ -186,7 +214,8 @@ def create_reservation_checkout(
             juego = db.get(Juego, payload.juego_id)
             if not juego:
                 raise ValueError(f"No existe el juego con id {payload.juego_id}.")
-
+            if not juego.activo:
+                raise ValueError("El juego seleccionado no está disponible.")
             registro_juego = RegistroJuego(
                 cantidad=1,
                 precio=juego.precio_alquiler,
@@ -264,7 +293,8 @@ def update_reservation_checkout(
             producto = db.get(Producto, item.id_producto)
             if not producto:
                 raise ValueError(f"No existe el producto con id {item.id_producto}.")
-
+            if not producto.activo:
+                raise ValueError("Uno de los productos seleccionados no está disponible.")
             detalle_reserva = DetalleReserva(
                 cantidad=item.cantidad,
                 precio=producto.precio,
@@ -277,7 +307,8 @@ def update_reservation_checkout(
             juego = db.get(Juego, payload.juego_id)
             if not juego:
                 raise ValueError(f"No existe el juego con id {payload.juego_id}.")
-
+            if not juego.activo:
+                raise ValueError("El juego seleccionado no está disponible.")
             registro_juego = RegistroJuego(
                 cantidad=1,
                 precio=juego.precio_alquiler,

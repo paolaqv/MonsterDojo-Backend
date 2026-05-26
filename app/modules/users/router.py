@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.modules.auth.permissions import require_roles
 from app.db.session import get_db
@@ -28,4 +28,10 @@ def update_me(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
-    return update_current_user(db, current_user, payload)
+    try:
+        return update_current_user(db, current_user, payload)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
