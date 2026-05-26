@@ -2,8 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.logs.activity.service import registrar_evento
 from app.modules.auth.dependencies import get_current_user
-from app.modules.auth.permissions import user_has_any_permission
+from app.modules.auth.permissions import (
+    require_permissions,
+    user_has_any_permission,
+)
 from app.modules.game_rentals.schemas import (
     GameRentalCreate,
     GameRentalRead,
@@ -146,7 +150,28 @@ def create_new_game_rental(
         )
 
     try:
-        return create_game_rental(db, payload)
+        rental = create_game_rental(db, payload)
+
+        registrar_evento(
+            db=db,
+            usuario_id=current_user.id_usuario,
+            rol_id=current_user.rol_id_rol,
+            evento="ALQUILER_REGISTRADO",
+            modulo="alquileres",
+            accion="CREATE",
+            estado="OK",
+            severidad="MEDIA",
+            entidad_afectada="registro_juego",
+            entidad_id=rental.id_regJuego,
+            valor_nuevo={
+                "juego_id_juego": rental.juego_id_juego,
+                "cantidad": rental.cantidad,
+                "precio": rental.precio,
+                "usuario_id_usuario": rental.usuario_id_usuario,
+            },
+        )
+
+        return rental
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -209,7 +234,29 @@ def update_existing_game_rental(
             )
 
     try:
-        return update_game_rental(db, rental_id, payload)
+        rental = update_game_rental(db, rental_id, payload)
+
+        registrar_evento(
+            db=db,
+            usuario_id=current_user.id_usuario,
+            rol_id=current_user.rol_id_rol,
+            evento="ALQUILER_ACTUALIZADO",
+            modulo="alquileres",
+            accion="UPDATE",
+            estado="OK",
+            severidad="MEDIA",
+            entidad_afectada="registro_juego",
+            entidad_id=rental_id,
+            valor_anterior=snapshot_before,
+            valor_nuevo={
+                "cantidad": rental.cantidad,
+                "precio": rental.precio,
+                "juego_id_juego": rental.juego_id_juego,
+                "usuario_id_usuario": rental.usuario_id_usuario,
+            },
+        )
+
+        return rental
     except ValueError as e:
         detail = str(e)
         status_code = (

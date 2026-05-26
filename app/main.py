@@ -9,6 +9,8 @@ from app.api.router import api_router
 
 from app.core.config import get_settings
 
+from app.db.session import SessionLocal
+from app.logs.application.service import registrar_aplicacion
 from app.shared.exceptions import AppException
 from app.shared.responses import error_response
 
@@ -26,18 +28,18 @@ app = FastAPI(
 )
 
 
-# app.add_middleware(
-#     TrustedHostMiddleware,
-#     allowed_hosts=settings.trusted_hosts_list,
-# )
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=settings.trusted_hosts_list,
+)
 
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
 )
 
 
@@ -157,7 +159,18 @@ async def generic_exception_handler(
     exc:Exception
 ):
 
-    # nunca devolver errores internos reales
+    log_db = SessionLocal()
+    try:
+        registrar_aplicacion(
+            log_db,
+            modulo="sistema",
+            evento="ERROR_INESPERADO",
+            descripcion=f"{type(exc).__name__} en {request.method} {request.url.path}",
+            severidad="ERROR",
+            estado="FAIL",
+        )
+    finally:
+        log_db.close()
 
     return JSONResponse(
         status_code=500,

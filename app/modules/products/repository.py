@@ -66,3 +66,11 @@ def update_product(db: Session, product: Producto, product_data: ProductUpdate) 
     db.commit()
     db.refresh(product)
     return product
+
+
+def soft_delete_product(db: Session, product: Producto) -> Producto:
+    product.activo = False
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    return product
