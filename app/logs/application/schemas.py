@@ -19,7 +19,7 @@ class ApplicationLogOut(BaseModel):
 
     usuario_id: Optional[int] = None
     entidad_afectada: Optional[str] = None
-    entidad_id: Optional[str] = None
+    entidad_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -34,7 +34,7 @@ class ApplicationLogCreate(BaseModel):
 
     usuario_id: Optional[int] = Field(default=None, ge=1)
     entidad_afectada: Optional[str] = Field(default=None, max_length=100)
-    entidad_id: Optional[str] = Field(default=None, max_length=50)
+    entidad_id: Optional[int] = Field(default=None, ge=1)
 
     @field_validator(
         "modulo",
@@ -43,7 +43,6 @@ class ApplicationLogCreate(BaseModel):
         "severidad",
         "estado",
         "entidad_afectada",
-        "entidad_id",
         mode="before",
     )
     @classmethod

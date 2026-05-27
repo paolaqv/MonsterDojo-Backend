@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.logs.activity.service import registrar_evento
 from app.logs.application.service import registrar_aplicacion
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.permissions import (
@@ -133,21 +132,6 @@ def update_existing_order(
         order = update_order(db, order_id, payload)
 
         if payload.estado is not None and payload.estado != old_state:
-            registrar_evento(
-                db=db,
-                usuario_id=current_user.id_usuario,
-                rol_id=current_user.rol_id_rol,
-                evento="PEDIDO_ESTADO_CAMBIADO",
-                modulo="pedidos",
-                accion="UPDATE",
-                estado="OK",
-                severidad="ALTA",
-                entidad_afectada="pedido",
-                entidad_id=order_id,
-                valor_anterior={"estado": old_state},
-                valor_nuevo={"estado": payload.estado},
-            )
-
             registrar_aplicacion(
                 db,
                 modulo="pedidos",
