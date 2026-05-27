@@ -6,7 +6,10 @@ from app.modules.auth.permissions import require_permissions
 from app.modules.users.model import Usuario
 from . import schemas, service
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/risks",
+    tags=["Risk Management"]
+)
 
 # --- ACTIVOS ---
 @router.get("/activos/", response_model=list[schemas.ActivoRead])

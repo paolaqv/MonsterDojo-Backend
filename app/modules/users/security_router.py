@@ -81,28 +81,6 @@ def create_security_user(
             },
         )
 
-        registrar_aplicacion(
-            db,
-            modulo="usuarios",
-            evento="USUARIO_CREADO",
-            descripcion=(
-                f"Usuario de seguridad {current_user.id_usuario} creó "
-                f"al usuario {user.id_usuario} ({user.correo}) "
-                f"con rol {user.rol_id_rol}."
-            ),
-            severidad="INFO",
-            estado="OK",
-            severidad="ALTA",
-            descripcion=f"Encargado de seguridad {current_user.id_usuario} creo usuario {user.id_usuario} ({user.correo}) con rol {user.rol_id_rol}.",
-            entidad_afectada="usuario",
-            entidad_id=user.id_usuario,
-            valor_nuevo={
-                "id_usuario": user.id_usuario,
-                "correo": user.correo,
-                "rol_id_rol": user.rol_id_rol,
-                "activo": user.activo,
-            },
-        )
         return user
 
     except ValueError as e:
@@ -110,7 +88,6 @@ def create_security_user(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
-
 
 @router.put("/{user_id}", response_model=UserRead)
 def update_security_user(
