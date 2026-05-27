@@ -1,6 +1,10 @@
+import logging
+
 from sqlalchemy import or_, select
 
 from app.logs.activity.model import RegistroActividad
+
+logger = logging.getLogger(__name__)
 
 
 def guardar_log(db, data):
@@ -16,8 +20,9 @@ def guardar_log(db, data):
 
         return log
 
-    except Exception:
+    except Exception as exc:
         db.rollback()
+        logger.warning("guardar_log falló silenciosamente: %s | data=%s", exc, data)
         return None
 
 

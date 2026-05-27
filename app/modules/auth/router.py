@@ -169,20 +169,6 @@ def security_question(payload: SecurityQuestionRequest, db: Session = Depends(ge
         )
 
 
-
-
-@router.post(
-    "/reset-password",
-    response_model=MessageResponse
-)
-
-
-@router.put(
-    "/security-question",
-    response_model=MessageResponse
-)
-
-
 # =========================================================
 # NUEVO FLUJO: cambio obligatorio por política
 # =========================================================

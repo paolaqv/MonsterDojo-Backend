@@ -1,5 +1,9 @@
+import logging
+
 from app.logs.activity.repository import guardar_log
 from app.shared.validation import sanitize_plain_text
+
+logger = logging.getLogger(__name__)
 
 
 SENSITIVE_FIELDS = {
@@ -86,5 +90,5 @@ def registrar_evento(
                 "valor_nuevo": _sanitize_log_value(valor_nuevo),
             },
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("registrar_evento falló: evento=%s modulo=%s | %s", evento, modulo, exc)
