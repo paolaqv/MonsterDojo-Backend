@@ -13,6 +13,7 @@ from app.modules.users.security_router import router as security_users_router
 from app.modules.security.roles.router import router as roles_router
 from app.logs.router import router as logs_router
 from app.modules.security.passwords.router import router as password_policy_router
+from app.modules.risks.router import router as risks_router
 
 api_router = APIRouter()
 
@@ -27,6 +28,7 @@ api_router.include_router(game_rentals_router)
 api_router.include_router(payments_router)
 api_router.include_router(security_users_router)
 api_router.include_router(roles_router)
+api_router.include_router(risks_router, prefix="/risks", tags=["Risks"])
 api_router.include_router(
     logs_router
 )
