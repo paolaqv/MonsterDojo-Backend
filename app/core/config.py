@@ -27,6 +27,13 @@ class Settings(BaseSettings):
 
     recaptcha_secret_key: str | None = None
     recaptcha_verify_url: str = "https://www.google.com/recaptcha/api/siteverify"
+
+    # Gmail API para envío seguro mediante HTTPS en producción.
+    gmail_client_id: str | None = None
+    gmail_client_secret: str | None = None
+    gmail_refresh_token: str | None = None
+    gmail_sender_email: str | None = None
+    #correo
     smtp_host: str | None = None
     smtp_port: int = 587
     smtp_user: str | None = None
