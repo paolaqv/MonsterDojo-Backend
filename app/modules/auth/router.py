@@ -224,12 +224,14 @@ def password_recovery_request(
     payload: PasswordRecoveryRequest,
     db: Session = Depends(get_db),
 ):
+    print(f"[AUDIT][password_recovery_request] START correo={payload.correo}", flush=True)
     try:
         resultado = request_password_recovery(
             db,
             payload.correo,
             settings.app_debug,
         )
+        print(f"[AUDIT][password_recovery_request] request_password_recovery OK, llamando registrar_evento", flush=True)
 
         registrar_evento(
             db=db,
@@ -238,12 +240,14 @@ def password_recovery_request(
             accion="REQUEST",
             estado="OK",
             severidad="MEDIA",
-            descripcion=f"Se envió código de recuperación al correo de contacto '{payload.correo}'.",
+            descripcion=f"Se envio codigo de recuperacion al correo de contacto '{payload.correo}'.",
             entidad_afectada="usuario",
         )
+        print(f"[AUDIT][password_recovery_request] registrar_evento RECUPERACION_SOLICITADA retornó, return resultado", flush=True)
 
         return resultado
     except ValueError as e:
+        print(f"[AUDIT][password_recovery_request] ValueError capturado: {e}", flush=True)
         registrar_evento(
             db=db,
             evento="RECUPERACION_SOLICITUD_FALLIDA",
@@ -251,13 +255,28 @@ def password_recovery_request(
             accion="REQUEST",
             estado="FALLIDO",
             severidad="MEDIA",
-            descripcion=f"Solicitud de recuperación para '{payload.correo}' falló: {str(e)}",
+            descripcion=f"Solicitud de recuperacion para '{payload.correo}' fallo: {str(e)}",
             entidad_afectada="usuario",
         )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+    except Exception as exc:
+        # Diagnóstico: cualquier otra excepción que no sea ValueError llegaría acá.
+        # Antes era invisible porque caía al handler genérico de FastAPI sin loguear evento de seguridad.
+        print(f"[AUDIT][password_recovery_request] EXCEPCION NO-VALUE: {type(exc).__name__}: {exc}", flush=True)
+        registrar_evento(
+            db=db,
+            evento="RECUPERACION_SOLICITUD_FALLIDA",
+            modulo="auth",
+            accion="REQUEST",
+            estado="FALLIDO",
+            severidad="ALTA",
+            descripcion=f"Solicitud de recuperacion para '{payload.correo}' fallo por error inesperado: {type(exc).__name__}: {exc}",
+            entidad_afectada="usuario",
+        )
+        raise
 
 
 @router.post("/password-recovery/verify", response_model=MessageResponse)

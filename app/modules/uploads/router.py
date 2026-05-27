@@ -85,12 +85,15 @@ async def upload_image(
         db,
         modulo="uploads",
         evento="ARCHIVO_SUBIDO",
-        descripcion=f"Usuario {current_user.id_usuario} subio imagen para {tipo} ({len(contents)} bytes).",
+        descripcion=(
+            f"Usuario {current_user.id_usuario} subio imagen para {tipo} "
+            f"({len(contents)} bytes). Ruta: {object_path}"
+        ),
         severidad="INFO",
         estado="OK",
         usuario_id=current_user.id_usuario,
         entidad_afectada=f"imagen_{tipo}",
-        entidad_id=object_path,
+        # entidad_id es INTEGER ahora; el path va en la descripción.
     )
 
     return {"url": public_url, "path": object_path}

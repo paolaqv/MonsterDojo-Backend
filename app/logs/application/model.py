@@ -8,7 +8,7 @@ class RegistroAplicacion(Base):
     __tablename__ = "registro_aplicacion"
 
     id = Column(Integer, primary_key=True)
-    fecha = Column(DateTime(timezone=False), server_default=func.now())
+    fecha = Column(DateTime(timezone=True), server_default=func.now())
 
     modulo = Column(String(100), nullable=False)
     evento = Column(String(255), nullable=False)
@@ -23,6 +23,6 @@ class RegistroAplicacion(Base):
     )
 
     entidad_afectada = Column(String(100))
-    entidad_id = Column(String(50))
+    entidad_id = Column(Integer)
 
     estado = Column(String(20), default="OK")
