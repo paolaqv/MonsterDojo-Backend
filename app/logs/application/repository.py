@@ -1,18 +1,37 @@
+import logging
+
 from sqlalchemy import or_, select
 
+from app.db.session import SessionLocal
 from app.logs.application.model import RegistroAplicacion
+
+logger = logging.getLogger(__name__)
 
 
 def guardar_log_aplicacion(db, data):
+    """
+    Inserta un evento de aplicación con SESIÓN INDEPENDIENTE.
+    Si la sesión del request principal está en estado inválido
+    (rollback, transacción rota), el log seguía perdiéndose en silencio.
+    Una sesión propia garantiza la persistencia del evento.
+    """
+    log_db = SessionLocal()
     try:
         log = RegistroAplicacion(**data)
-        db.add(log)
-        db.commit()
-        db.refresh(log)
+        log_db.add(log)
+        log_db.commit()
+        log_db.refresh(log)
         return log
-    except Exception:
-        db.rollback()
+    except Exception as exc:
+        log_db.rollback()
+        logger.warning(
+            "guardar_log_aplicacion falló al insertar evento: %s | data=%s",
+            exc,
+            data,
+        )
         return None
+    finally:
+        log_db.close()
 
 
 def obtener_logs_aplicacion(
@@ -31,7 +50,7 @@ def obtener_logs_aplicacion(
         stmt = stmt.where(RegistroAplicacion.severidad == severidad)
 
     if modulo:
-        stmt = stmt.where(RegistroAplicacion.modulo == modulo)
+        stmt = stmt.where(RegistroAplicacion.modulo.ilike(f"%{modulo}%"))
 
     if estado:
         stmt = stmt.where(RegistroAplicacion.estado == estado)

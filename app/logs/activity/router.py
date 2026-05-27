@@ -20,6 +20,8 @@ router = APIRouter(
 def ver_logs(
     severidad: Literal["BAJA", "MEDIA", "ALTA", "CRITICA"] | None = Query(default=None),
     search: str | None = Query(default=None, min_length=1, max_length=100),
+    modulo: str | None = Query(default=None, max_length=100),
+    estado: str | None = Query(default=None, max_length=20),
     critical_only: bool = Query(default=False),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
@@ -30,6 +32,8 @@ def ver_logs(
         db,
         severidad=severidad,
         search=sanitize_plain_text(search) if search else None,
+        modulo=sanitize_plain_text(modulo) if modulo else None,
+        estado=sanitize_plain_text(estado) if estado else None,
         critical_only=critical_only,
         skip=skip,
         limit=limit,

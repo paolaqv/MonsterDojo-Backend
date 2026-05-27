@@ -8,6 +8,16 @@ from app.logs.activity.service import registrar_evento
 from app.modules.auth.permissions import require_permissions
 from app.modules.users.model import Usuario
 
+
+def _role_snapshot(role) -> dict | None:
+    if role is None:
+        return None
+    return {
+        "id_rol": role.id_rol,
+        "nombre": role.nombre,
+        "activo": role.activo,
+    }
+
 from app.modules.security.roles.schemas import (
     PermissionRead,
     RoleCreate,
@@ -88,9 +98,10 @@ def create_new_role(
             accion="CREATE",
             estado="OK",
             severidad="ALTA",
+            descripcion=f"Encargado {current_user.id_usuario} creo rol '{role.nombre}' (id {role.id_rol}).",
             entidad_afectada="rol",
             entidad_id=None,
-            valor_nuevo=role,
+            valor_nuevo=_role_snapshot(role),
         )
 
         return role
@@ -114,6 +125,7 @@ def update_existing_role(
 ):
     try:
         previous_role = get_role_by_id(db, role_id)
+        previous_snapshot = _role_snapshot(previous_role)
 
         role=update_role(
             db,
@@ -130,9 +142,10 @@ def update_existing_role(
             accion="UPDATE",
             estado="OK",
             severidad="ALTA",
+            descripcion=f"Encargado {current_user.id_usuario} edito rol '{role.nombre}' (id {role.id_rol}).",
             entidad_afectada="rol",
-            valor_anterior=previous_role,
-            valor_nuevo=role,
+            valor_anterior=previous_snapshot,
+            valor_nuevo=_role_snapshot(role),
         )
 
         return role
@@ -162,6 +175,8 @@ def delete_existing_role(
 ):
     try:
         previous_role = get_role_by_id(db, role_id)
+        previous_snapshot = _role_snapshot(previous_role)
+        nombre_legible = previous_role.nombre if previous_role else role_id
 
         delete_role(
             db,
@@ -177,8 +192,9 @@ def delete_existing_role(
             accion="DELETE",
             estado="OK",
             severidad="CRITICA",
+            descripcion=f"Encargado {current_user.id_usuario} elimino rol '{nombre_legible}' (id {role_id}).",
             entidad_afectada="rol",
-            valor_anterior=previous_role,
+            valor_anterior=previous_snapshot,
         )
 
         return {

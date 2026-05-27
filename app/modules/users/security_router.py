@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 
 from app.logs.activity.service import registrar_evento
-from app.logs.application.service import registrar_aplicacion
 
 from app.modules.auth.permissions import require_permissions
 from app.modules.auth.schemas import MessageResponse
@@ -93,9 +92,16 @@ def create_security_user(
             ),
             severidad="INFO",
             estado="OK",
-            usuario_id=current_user.id_usuario,
+            severidad="ALTA",
+            descripcion=f"Encargado de seguridad {current_user.id_usuario} creo usuario {user.id_usuario} ({user.correo}) con rol {user.rol_id_rol}.",
             entidad_afectada="usuario",
             entidad_id=user.id_usuario,
+            valor_nuevo={
+                "id_usuario": user.id_usuario,
+                "correo": user.correo,
+                "rol_id_rol": user.rol_id_rol,
+                "activo": user.activo,
+            },
         )
         return user
 
@@ -145,6 +151,7 @@ def update_security_user(
             accion="UPDATE",
             estado="OK",
             severidad="MEDIA",
+            descripcion=f"Encargado {current_user.id_usuario} edito usuario {user_id} ({user.correo}).",
             entidad_afectada="usuario",
             entidad_id=user_id,
             valor_anterior=valor_anterior,
@@ -154,18 +161,6 @@ def update_security_user(
                 "rol_id_rol": user.rol_id_rol,
                 "activo": user.activo,
             },
-        )
-
-        registrar_aplicacion(
-            db,
-            modulo="usuarios",
-            evento="USUARIO_EDITADO",
-            descripcion=f"Encargado {current_user.id_usuario} edito usuario {user_id} ({user.correo}).",
-            severidad="INFO",
-            estado="OK",
-            usuario_id=current_user.id_usuario,
-            entidad_afectada="usuario",
-            entidad_id=user_id,
         )
 
         return user
@@ -218,28 +213,11 @@ def update_security_user_role(
             accion="UPDATE",
             estado="OK",
             severidad="ALTA",
-
-            entidad_afectada="usuario",
-            entidad_id=user_id,
-
-            valor_anterior={
-                "rol_anterior":previous_role
-            },
-            valor_nuevo={
-                "nuevo_rol":payload.rol_id_rol
-            }
-        )
-
-        registrar_aplicacion(
-            db,
-            modulo="usuarios",
-            evento="ROL_CAMBIADO",
             descripcion=f"Encargado {current_user.id_usuario} cambio rol del usuario {user_id}: '{previous_role}' -> '{payload.rol_id_rol}'.",
-            severidad="WARN",
-            estado="OK",
-            usuario_id=current_user.id_usuario,
             entidad_afectada="usuario",
             entidad_id=user_id,
+            valor_anterior={"rol_anterior": previous_role},
+            valor_nuevo={"nuevo_rol": payload.rol_id_rol},
         )
 
         return user
@@ -283,6 +261,7 @@ def update_security_user_status(
             payload.activo
         )
 
+        accion_legible = "reactivo" if payload.activo else "desactivo"
         registrar_evento(
             db=db,
             usuario_id=current_user.id_usuario,
@@ -292,27 +271,11 @@ def update_security_user_status(
             accion="UPDATE",
             estado="OK",
             severidad="ALTA",
-            entidad_afectada="usuario",
-            entidad_id=user_id,
-            valor_anterior={
-                "activo":previous_status
-            },
-            valor_nuevo={
-                "activo":payload.activo
-            }
-        )
-
-        accion_legible = "reactivo" if payload.activo else "desactivo"
-        registrar_aplicacion(
-            db,
-            modulo="usuarios",
-            evento="USUARIO_ESTADO_CAMBIADO",
             descripcion=f"Encargado {current_user.id_usuario} {accion_legible} al usuario {user_id}.",
-            severidad="WARN" if not payload.activo else "INFO",
-            estado="OK",
-            usuario_id=current_user.id_usuario,
             entidad_afectada="usuario",
             entidad_id=user_id,
+            valor_anterior={"activo": previous_status},
+            valor_nuevo={"activo": payload.activo},
         )
 
         return user
@@ -361,21 +324,10 @@ def delete_security_user(
             accion="DELETE",
             estado="OK",
             severidad="CRITICA",
+            descripcion=f"Encargado {current_user.id_usuario} elimino usuario {user_id} ({valor_anterior.get('correo') if valor_anterior else 'desconocido'}).",
             entidad_afectada="usuario",
             entidad_id=user_id,
             valor_anterior=valor_anterior,
-        )
-
-        registrar_aplicacion(
-            db,
-            modulo="usuarios",
-            evento="USUARIO_ELIMINADO",
-            descripcion=f"Encargado {current_user.id_usuario} elimino usuario {user_id} ({valor_anterior.get('correo') if valor_anterior else 'desconocido'}).",
-            severidad="CRITICA",
-            estado="OK",
-            usuario_id=current_user.id_usuario,
-            entidad_afectada="usuario",
-            entidad_id=user_id,
         )
 
         return {
@@ -428,22 +380,11 @@ def unlock_security_user(
         accion="UPDATE",
         estado="OK",
         severidad="ALTA",
+        descripcion=f"Encargado {current_user.id_usuario} desbloqueo cuenta del usuario {user_id} ({user.correo}).",
         entidad_afectada="usuario",
         entidad_id=user_id,
         valor_anterior={"bloqueado": True},
         valor_nuevo={"bloqueado": False},
-    )
-
-    registrar_aplicacion(
-        db,
-        modulo="usuarios",
-        evento="USUARIO_DESBLOQUEADO",
-        descripcion=f"Encargado {current_user.id_usuario} desbloqueo cuenta del usuario {user_id} ({user.correo}).",
-        severidad="WARN",
-        estado="OK",
-        usuario_id=current_user.id_usuario,
-        entidad_afectada="usuario",
-        entidad_id=user_id,
     )
 
     return {"message": "Usuario desbloqueado correctamente."}

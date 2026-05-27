@@ -1,5 +1,9 @@
+import logging
+
 from app.logs.activity.repository import guardar_log
 from app.shared.validation import sanitize_plain_text
+
+logger = logging.getLogger(__name__)
 
 
 SENSITIVE_FIELDS = {
@@ -48,6 +52,7 @@ def registrar_evento(
     valor_anterior=None,
     valor_nuevo=None,
 ):
+    print(f"[AUDIT][registrar_evento] inicio evento={evento} modulo={modulo}", flush=True)
     try:
         evento = sanitize_plain_text(evento)
         modulo = sanitize_plain_text(modulo)
@@ -67,7 +72,8 @@ def registrar_evento(
                     descripcion = "Dato sensible ocultado"
                     break
 
-        guardar_log(
+        print(f"[AUDIT][registrar_evento] llamando guardar_log evento={evento}", flush=True)
+        resultado = guardar_log(
             db,
             {
                 "usuario_id": usuario_id,
@@ -86,5 +92,7 @@ def registrar_evento(
                 "valor_nuevo": _sanitize_log_value(valor_nuevo),
             },
         )
-    except Exception:
-        pass
+        print(f"[AUDIT][registrar_evento] guardar_log retorno={resultado is not None} evento={evento}", flush=True)
+    except Exception as exc:
+        print(f"[AUDIT][registrar_evento] EXCEPCION evento={evento} | {type(exc).__name__}: {exc}", flush=True)
+        logger.warning("registrar_evento falló: evento=%s modulo=%s | %s", evento, modulo, exc)

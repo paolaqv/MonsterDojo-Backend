@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.logs.activity.service import registrar_evento
 from app.logs.application.service import registrar_aplicacion
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.permissions import (
@@ -94,23 +93,6 @@ def create_new_payment(
     try:
         payment = create_payment(db, payload)
 
-        registrar_evento(
-            db=db,
-            usuario_id=current_user.id_usuario,
-            rol_id=current_user.rol_id_rol,
-            evento="PAGO_REGISTRADO",
-            modulo="pagos",
-            accion="CREATE",
-            estado="OK",
-            severidad="ALTA",
-            entidad_afectada="pago",
-            entidad_id=payment.id_pago,
-            valor_nuevo={
-                "monto": payment.monto,
-                "usuario_id_usuario": payment.usuario_id_usuario,
-            },
-        )
-
         registrar_aplicacion(
             db,
             modulo="pagos",
@@ -138,26 +120,19 @@ def update_existing_payment(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(require_permissions("gestionar_pagos")),
 ):
-    payment_before = get_payment_by_id(db, payment_id)
-    old_amount = payment_before.monto if payment_before else None
-    old_user = payment_before.usuario_id_usuario if payment_before else None
-
     try:
         payment = update_payment(db, payment_id, payload)
 
-        registrar_evento(
-            db=db,
-            usuario_id=current_user.id_usuario,
-            rol_id=current_user.rol_id_rol,
-            evento="PAGO_ACTUALIZADO",
+        registrar_aplicacion(
+            db,
             modulo="pagos",
-            accion="UPDATE",
+            evento="PAGO_ACTUALIZADO",
+            descripcion=f"Usuario {current_user.id_usuario} actualizo pago {payment_id} (monto {payment.monto}).",
+            severidad="INFO",
             estado="OK",
-            severidad="ALTA",
+            usuario_id=current_user.id_usuario,
             entidad_afectada="pago",
             entidad_id=payment_id,
-            valor_anterior={"monto": old_amount, "usuario_id_usuario": old_user},
-            valor_nuevo={"monto": payment.monto, "usuario_id_usuario": payment.usuario_id_usuario},
         )
 
         return payment
