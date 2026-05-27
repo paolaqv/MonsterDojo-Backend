@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 
 from app.logs.activity.service import registrar_evento
-from app.logs.application.service import registrar_aplicacion
 
 from app.modules.auth.permissions import require_permissions
 from app.modules.auth.schemas import MessageResponse
@@ -61,16 +60,24 @@ def create_security_user(
     try:
         user = create_user(db, payload)
 
-        registrar_aplicacion(
-            db,
-            modulo="usuarios",
-            evento="USUARIO_CREADO",
-            descripcion=f"Encargado de seguridad {current_user.id_usuario} creo usuario {user.id_usuario} ({user.correo}) con rol {user.rol_id_rol}.",
-            severidad="INFO",
-            estado="OK",
+        registrar_evento(
+            db=db,
             usuario_id=current_user.id_usuario,
+            rol_id=current_user.rol_id_rol,
+            evento="USUARIO_CREADO",
+            modulo="usuarios",
+            accion="CREATE",
+            estado="OK",
+            severidad="ALTA",
+            descripcion=f"Encargado de seguridad {current_user.id_usuario} creo usuario {user.id_usuario} ({user.correo}) con rol {user.rol_id_rol}.",
             entidad_afectada="usuario",
             entidad_id=user.id_usuario,
+            valor_nuevo={
+                "id_usuario": user.id_usuario,
+                "correo": user.correo,
+                "rol_id_rol": user.rol_id_rol,
+                "activo": user.activo,
+            },
         )
 
         return user
@@ -95,22 +102,41 @@ def update_security_user(
                 detail="No puedes cambiar tu propio rol desde este flujo.",
             )
 
+        previous_user = get_user_by_id(db, user_id)
+        valor_anterior = None
+        if previous_user:
+            valor_anterior = {
+                "nombre": previous_user.nombre,
+                "correo": previous_user.correo,
+                "rol_id_rol": previous_user.rol_id_rol,
+                "activo": previous_user.activo,
+            }
+
         user=update_user(
             db,
             user_id,
             payload
         )
 
-        registrar_aplicacion(
-            db,
-            modulo="usuarios",
-            evento="USUARIO_EDITADO",
-            descripcion=f"Encargado {current_user.id_usuario} edito usuario {user_id} ({user.correo}).",
-            severidad="INFO",
-            estado="OK",
+        registrar_evento(
+            db=db,
             usuario_id=current_user.id_usuario,
+            rol_id=current_user.rol_id_rol,
+            evento="USUARIO_EDITADO",
+            modulo="usuarios",
+            accion="UPDATE",
+            estado="OK",
+            severidad="MEDIA",
+            descripcion=f"Encargado {current_user.id_usuario} edito usuario {user_id} ({user.correo}).",
             entidad_afectada="usuario",
             entidad_id=user_id,
+            valor_anterior=valor_anterior,
+            valor_nuevo={
+                "nombre": user.nombre,
+                "correo": user.correo,
+                "rol_id_rol": user.rol_id_rol,
+                "activo": user.activo,
+            },
         )
 
         return user
