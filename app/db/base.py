@@ -15,3 +15,4 @@ from app.modules.game_rentals import model as game_rentals_model  # noqa: F401
 from app.modules.payments import model as payments_model  # noqa: F401
 from app.modules.security.passwords import model as passwords_model  # noqa: F401
 from app.logs.activity import model as activity_logs_model  # noqa: F401
+from app.modules.risks.model import Activo, Riesgo, Mitigacion  # noqa: F401
