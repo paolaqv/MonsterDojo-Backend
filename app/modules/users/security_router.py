@@ -56,24 +56,49 @@ def read_user(
 def create_security_user(
     payload: UserCreate,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(require_permissions("gestionar_usuarios"))
+    current_user: Usuario = Depends(require_permissions("gestionar_usuarios")),
 ):
     try:
         user = create_user(db, payload)
+
+        registrar_evento(
+            db=db,
+            usuario_id=current_user.id_usuario,
+            rol_id=current_user.rol_id_rol,
+            evento="USUARIO_CREADO",
+            modulo="usuarios",
+            accion="CREATE",
+            estado="OK",
+            severidad="MEDIA",
+            entidad_afectada="usuario",
+            entidad_id=user.id_usuario,
+            valor_anterior=None,
+            valor_nuevo={
+                "nombre": user.nombre,
+                "correo": user.correo,
+                "correo_contacto": user.correo_contacto,
+                "rol_id_rol": user.rol_id_rol,
+                "activo": user.activo,
+            },
+        )
 
         registrar_aplicacion(
             db,
             modulo="usuarios",
             evento="USUARIO_CREADO",
-            descripcion=f"Encargado de seguridad {current_user.id_usuario} creo usuario {user.id_usuario} ({user.correo}) con rol {user.rol_id_rol}.",
+            descripcion=(
+                f"Usuario de seguridad {current_user.id_usuario} creó "
+                f"al usuario {user.id_usuario} ({user.correo}) "
+                f"con rol {user.rol_id_rol}."
+            ),
             severidad="INFO",
             estado="OK",
             usuario_id=current_user.id_usuario,
             entidad_afectada="usuario",
             entidad_id=user.id_usuario,
         )
-
         return user
+
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
