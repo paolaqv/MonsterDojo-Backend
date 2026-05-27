@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.email import send_email
 from app.core.security import create_access_token, get_password_hash, verify_password
+from app.logs.activity.service import registrar_evento
 from app.modules.auth.email_templates import build_password_recovery_email
 from app.modules.security.passwords.service import (
     apply_new_password,
@@ -50,6 +51,21 @@ def authenticate_user(db: Session, email: str, password: str) -> Usuario:
             user.fecha_bloqueo = datetime.now(timezone.utc)
             db.add(user)
             db.commit()
+
+            registrar_evento(
+                db=db,
+                usuario_id=user.id_usuario,
+                evento="CUENTA_BLOQUEADA",
+                modulo="auth",
+                accion="BLOCK",
+                estado="OK",
+                severidad="ALTA",
+                descripcion=f"Cuenta {user.correo} bloqueada automaticamente tras {user.intentos_fallidos} intentos fallidos.",
+                entidad_afectada="usuario",
+                entidad_id=user.id_usuario,
+                valor_nuevo={"bloqueado": True, "intentos_fallidos": user.intentos_fallidos},
+            )
+
             raise ValueError("Has excedido el número máximo de intentos. Tu cuenta fue bloqueada.")
 
         db.add(user)
@@ -74,6 +90,20 @@ def authenticate_user(db: Session, email: str, password: str) -> Usuario:
         user.requiere_cambio_password = True
         db.add(user)
         db.commit()
+
+        registrar_evento(
+            db=db,
+            usuario_id=user.id_usuario,
+            evento="PASSWORD_EXPIRADA",
+            modulo="auth",
+            accion="POLICY",
+            estado="OK",
+            severidad="MEDIA",
+            descripcion=f"La contraseña del usuario {user.correo} expiró y requiere cambio.",
+            entidad_afectada="usuario",
+            entidad_id=user.id_usuario,
+        )
+
         raise ValueError("Tu contraseña ha expirado. Debes cambiarla para continuar.")
 
     return user

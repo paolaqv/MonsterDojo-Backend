@@ -1,24 +1,49 @@
+import logging
+
 from sqlalchemy import or_, select
 
+from app.db.session import SessionLocal
 from app.logs.activity.model import RegistroActividad
+
+logger = logging.getLogger(__name__)
 
 
 def guardar_log(db, data):
+    """
+    Inserta un evento de auditoría usando una SESIÓN INDEPENDIENTE.
 
+    Razón: si la sesión del request principal está en estado inválido
+    (rollback pendiente, transacción rota, error previo), un commit ahí
+    nunca persiste y el log se pierde silenciosamente.
+    Una sesión propia garantiza que el evento se guarde aun cuando el
+    request termine con HTTPException.
+    """
+    print(f"[AUDIT][guardar_log] entrando evento={data.get('evento')}", flush=True)
+    log_db = SessionLocal()
     try:
         log = RegistroActividad(**data)
-
-        db.add(log)
-
-        db.commit()
-
-        db.refresh(log)
-
+        log_db.add(log)
+        log_db.commit()
+        log_db.refresh(log)
+        print(f"[AUDIT][guardar_log] OK id={log.id} evento={data.get('evento')}", flush=True)
         return log
 
-    except Exception:
-        db.rollback()
+    except Exception as exc:
+        log_db.rollback()
+        print(
+            f"[AUDIT][guardar_log] FALLO evento={data.get('evento')} | "
+            f"{type(exc).__name__}: {exc}",
+            flush=True,
+        )
+        logger.warning(
+            "guardar_log falló al insertar evento: %s | data=%s",
+            exc,
+            data,
+        )
         return None
+
+    finally:
+        log_db.close()
 
 
 def obtener_logs(
@@ -26,6 +51,8 @@ def obtener_logs(
     *,
     severidad: str | None = None,
     search: str | None = None,
+    modulo: str | None = None,
+    estado: str | None = None,
     critical_only: bool = False,
     skip: int = 0,
     limit: int = 100,
@@ -36,6 +63,12 @@ def obtener_logs(
         stmt = stmt.where(RegistroActividad.severidad.in_(["ALTA", "CRITICA"]))
     elif severidad:
         stmt = stmt.where(RegistroActividad.severidad == severidad)
+
+    if modulo:
+        stmt = stmt.where(RegistroActividad.modulo.ilike(f"%{modulo}%"))
+
+    if estado:
+        stmt = stmt.where(RegistroActividad.estado.ilike(f"%{estado}%"))
 
     if search:
         term = f"%{search}%"

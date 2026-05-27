@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.logs.activity.service import registrar_evento
 from app.logs.application.service import registrar_aplicacion
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.permissions import require_any_permission, require_permissions
@@ -130,20 +129,6 @@ def archive_existing_table(
 ):
     try:
         table = archive_table(db, table_id)
-        registrar_evento(
-            db=db,
-            usuario_id=current_user.id_usuario,
-            rol_id=current_user.rol_id_rol,
-            evento="MESA_ARCHIVADA",
-            modulo="mesas",
-            accion="UPDATE",
-            estado="OK",
-            severidad="ALTA",
-            entidad_afectada="mesa",
-            entidad_id=table_id,
-            valor_anterior={"activo": True},
-            valor_nuevo={"activo": False},
-        )
 
         registrar_aplicacion(
             db,
@@ -173,20 +158,6 @@ def unarchive_existing_table(
 ):
     try:
         table = unarchive_table(db, table_id)
-        registrar_evento(
-            db=db,
-            usuario_id=current_user.id_usuario,
-            rol_id=current_user.rol_id_rol,
-            evento="MESA_REACTIVADA",
-            modulo="mesas",
-            accion="UPDATE",
-            estado="OK",
-            severidad="MEDIA",
-            entidad_afectada="mesa",
-            entidad_id=table_id,
-            valor_anterior={"activo": False},
-            valor_nuevo={"activo": True},
-        )
 
         registrar_aplicacion(
             db,

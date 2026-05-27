@@ -14,7 +14,7 @@ from app.modules.security.roles.router import router as roles_router
 from app.logs.router import router as logs_router
 from app.modules.security.passwords.router import router as password_policy_router
 from app.modules.uploads.router import router as uploads_router
-
+from app.modules.risks.router import router as risks_router
 api_router = APIRouter()
 
 api_router.include_router(auth_router)
@@ -33,6 +33,7 @@ api_router.include_router(
 )
 api_router.include_router(password_policy_router)
 api_router.include_router(uploads_router)
+api_router.include_router(risks_router)
 @api_router.get("/health", tags=["Health"])
 def health_check():
     return {
