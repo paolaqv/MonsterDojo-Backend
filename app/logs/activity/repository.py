@@ -2,28 +2,41 @@ import logging
 
 from sqlalchemy import or_, select
 
+from app.db.session import SessionLocal
 from app.logs.activity.model import RegistroActividad
 
 logger = logging.getLogger(__name__)
 
 
 def guardar_log(db, data):
+    """
+    Inserta un evento de auditoría usando una SESIÓN INDEPENDIENTE.
 
+    Razón: si la sesión del request principal está en estado inválido
+    (rollback pendiente, transacción rota, error previo), un commit ahí
+    nunca persiste y el log se pierde silenciosamente.
+    Una sesión propia garantiza que el evento se guarde aun cuando el
+    request termine con HTTPException.
+    """
+    log_db = SessionLocal()
     try:
         log = RegistroActividad(**data)
-
-        db.add(log)
-
-        db.commit()
-
-        db.refresh(log)
-
+        log_db.add(log)
+        log_db.commit()
+        log_db.refresh(log)
         return log
 
     except Exception as exc:
-        db.rollback()
-        logger.warning("guardar_log falló silenciosamente: %s | data=%s", exc, data)
+        log_db.rollback()
+        logger.warning(
+            "guardar_log falló al insertar evento: %s | data=%s",
+            exc,
+            data,
+        )
         return None
+
+    finally:
+        log_db.close()
 
 
 def obtener_logs(
