@@ -9,13 +9,23 @@ from app.modules.auth.permissions import require_permissions
 from app.modules.users.model import Usuario
 
 
+def _role_field(role, field):
+    # El servicio de roles devuelve diccionarios (no objetos ORM); se admite
+    # también un objeto por robustez ante cambios futuros.
+    if role is None:
+        return None
+    if isinstance(role, dict):
+        return role.get(field)
+    return getattr(role, field, None)
+
+
 def _role_snapshot(role) -> dict | None:
     if role is None:
         return None
     return {
-        "id_rol": role.id_rol,
-        "nombre": role.nombre,
-        "activo": role.activo,
+        "id_rol": _role_field(role, "id_rol"),
+        "nombre": _role_field(role, "nombre"),
+        "activo": _role_field(role, "activo"),
     }
 
 from app.modules.security.roles.schemas import (
@@ -98,7 +108,7 @@ def create_new_role(
             accion="CREATE",
             estado="OK",
             severidad="ALTA",
-            descripcion=f"Encargado {current_user.id_usuario} creo rol '{role.nombre}' (id {role.id_rol}).",
+            descripcion=f"Encargado {current_user.id_usuario} creo rol '{_role_field(role, 'nombre')}' (id {_role_field(role, 'id_rol')}).",
             entidad_afectada="rol",
             entidad_id=None,
             valor_nuevo=_role_snapshot(role),
@@ -142,7 +152,7 @@ def update_existing_role(
             accion="UPDATE",
             estado="OK",
             severidad="ALTA",
-            descripcion=f"Encargado {current_user.id_usuario} edito rol '{role.nombre}' (id {role.id_rol}).",
+            descripcion=f"Encargado {current_user.id_usuario} edito rol '{_role_field(role, 'nombre')}' (id {_role_field(role, 'id_rol')}).",
             entidad_afectada="rol",
             valor_anterior=previous_snapshot,
             valor_nuevo=_role_snapshot(role),
@@ -176,7 +186,7 @@ def delete_existing_role(
     try:
         previous_role = get_role_by_id(db, role_id)
         previous_snapshot = _role_snapshot(previous_role)
-        nombre_legible = previous_role.nombre if previous_role else role_id
+        nombre_legible = _role_field(previous_role, "nombre") or role_id
 
         delete_role(
             db,

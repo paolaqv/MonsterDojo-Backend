@@ -101,10 +101,12 @@ def delete_existing_riesgo(
 # --- MITIGACIONES ---
 @router.get("/mitigaciones/", response_model=list[schemas.MitigacionRead])
 def read_mitigaciones(
-    riesgo_id: int,
+    riesgo_id: int | None = None,
     db: Session = Depends(get_db),
     _: Usuario = Depends(require_permissions("ver_auditoria")),
 ):
+    # Sin "riesgo_id" se devuelven todas las mitigaciones en una sola
+    # consulta, lo que evita el patrón N+1 (una petición por riesgo).
     return service.get_mitigaciones(db, riesgo_id)
 
 @router.post("/mitigaciones/", response_model=schemas.MitigacionRead, status_code=status.HTTP_201_CREATED)

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import logging
 import secrets
 
 from sqlalchemy import Boolean, DateTime, Integer, String, func, select
@@ -8,6 +9,8 @@ from app.core.email import send_email
 from app.core.security import get_password_hash, verify_password
 from app.db.base import Base
 from app.modules.auth.email_templates import build_email_verification_email
+
+logger = logging.getLogger(__name__)
 
 
 class EmailVerificationToken(Base):
@@ -64,9 +67,21 @@ def send_email_verification_code(db: Session, correo: str) -> dict:
 
         db.commit()
 
-    except Exception:
+    except ValueError:
+        # Errores de configuración o validación ya traen un mensaje claro;
+        # se propagan tal cual para que el usuario vea la causa real.
         db.rollback()
-        raise ValueError("No se pudo enviar el código de verificación.")
+        raise
+
+    except Exception as error:
+        db.rollback()
+        logger.exception(
+            "Fallo inesperado al enviar el código de verificación a %s",
+            normalized_email,
+        )
+        raise ValueError(
+            f"No se pudo enviar el código de verificación: {error}"
+        )
 
     return {"message": "Código de verificación enviado correctamente."}
 

@@ -69,6 +69,10 @@ def get_mitigaciones_by_riesgo(db: Session, riesgo_id: int) -> list[Mitigacion]:
     stmt = select(Mitigacion).where(Mitigacion.riesgo_id_riesgo == riesgo_id)
     return list(db.scalars(stmt).all())
 
+def get_all_mitigaciones(db: Session) -> list[Mitigacion]:
+    stmt = select(Mitigacion)
+    return list(db.scalars(stmt).all())
+
 def get_mitigacion_by_id(db: Session, mitigacion_id: int) -> Mitigacion | None:
     stmt = select(Mitigacion).where(Mitigacion.id_mitigacion == mitigacion_id)
     return db.scalar(stmt)

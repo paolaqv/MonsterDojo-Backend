@@ -23,6 +23,39 @@ def _validate_permission_ids(db: Session, permission_ids: list[str]) -> None:
             f"Permisos inexistentes o inactivos: {', '.join(missing_or_inactive)}."
         )
 
+
+def _assert_unique_permission_set(
+    db: Session,
+    permission_ids: list[str],
+    exclude_role_id: str | None = None,
+) -> None:
+    """Impide que existan dos roles con exactamente el mismo conjunto de accesos.
+
+    No se valida el conjunto vacío para no bloquear roles de sistema sin
+    permisos (por ejemplo, el rol por defecto "sin_rol").
+    """
+    target = frozenset(pid for pid in (permission_ids or []) if pid)
+    if not target:
+        return
+
+    for role in db.query(Rol).all():
+        if exclude_role_id is not None and role.id_rol == exclude_role_id:
+            continue
+
+        existing_permisos = frozenset(
+            rp.permiso_id_permiso
+            for rp in db.query(RolPermiso.permiso_id_permiso)
+            .filter(RolPermiso.rol_id_rol == role.id_rol)
+            .all()
+        )
+
+        if existing_permisos == target:
+            raise ValueError(
+                f"Ya existe un rol con los mismos accesos: '{role.nombre}' "
+                f"(ID: {role.id_rol}). No puedes registrar roles duplicados; "
+                f"modifica los permisos o edita el rol existente."
+            )
+
 def get_all_permissions(db: Session):
     return (
         db.query(Permiso)
@@ -80,6 +113,7 @@ def create_role(db: Session, payload):
         raise ValueError("El rol ya existe.")
 
     _validate_permission_ids(db, permisos)
+    _assert_unique_permission_set(db, permisos)
 
     role = Rol(
         id_rol=role_id,
@@ -120,6 +154,7 @@ def update_role(db: Session, role_id: str, payload):
 
     if payload.permisos is not None:
         _validate_permission_ids(db, payload.permisos)
+        _assert_unique_permission_set(db, payload.permisos, exclude_role_id=role_id)
 
     try:
         if payload.permisos is not None:

@@ -95,12 +95,60 @@ def get_users(db: Session, skip: int = 0, limit: int = 100) -> list[Usuario]:
     return repository.get_users(db, skip=skip, limit=limit)
 
 
+DEFAULT_ROLE_ID = "sin_rol"
+DEFAULT_ROLE_NAME = "Sin rol asignado"
+
+
+def _ensure_default_role(db: Session) -> Rol:
+    # Rol minimo (sin permisos) que se asigna cuando se crea un usuario sin rol.
+    # Se crea bajo demanda para no acoplar el alta de usuario con la gestion de
+    # roles ni depender de una migracion en la base de datos remota.
+    role = repository.get_role_by_id(db, DEFAULT_ROLE_ID)
+    if role:
+        return role
+
+    role = Rol(id_rol=DEFAULT_ROLE_ID, nombre=DEFAULT_ROLE_NAME, activo=True)
+    db.add(role)
+    db.commit()
+    db.refresh(role)
+    return role
+
+
+def _normalize_access_expiration(
+    acceso_expira: bool | None,
+    fecha_expiracion_acceso: datetime | None,
+) -> tuple[bool, datetime | None]:
+    # Devuelve (acceso_expira, fecha) ya listos para guardar.
+    # - Sin expiracion: se ignora cualquier fecha enviada.
+    # - Con expiracion: la fecha es obligatoria y se guarda como UTC naive
+    #   (la columna remota es TIMESTAMP sin zona horaria).
+    if not acceso_expira:
+        return False, None
+
+    if fecha_expiracion_acceso is None:
+        raise ValueError(
+            "Debes indicar la fecha de expiración del acceso cuando el acceso expira."
+        )
+
+    fecha = fecha_expiracion_acceso
+    if fecha.tzinfo is not None:
+        fecha = fecha.astimezone(timezone.utc).replace(tzinfo=None)
+    return True, fecha
+
+
 def create_user(db: Session, user_data: UserCreate) -> Usuario:
-    role = repository.get_role_by_id(db, user_data.rol_id_rol)
-    if not role:
-        raise ValueError("El rol especificado no existe.")
-    if not role.activo:
-        raise ValueError("No se puede asignar un rol inactivo.")
+    requested_role_id = (user_data.rol_id_rol or "").strip()
+
+    if requested_role_id:
+        role = repository.get_role_by_id(db, requested_role_id)
+        if not role:
+            raise ValueError("El rol especificado no existe.")
+        if not role.activo:
+            raise ValueError("No se puede asignar un rol inactivo.")
+    else:
+        # Sin rol seleccionado: se asigna un rol minimo por defecto.
+        role = _ensure_default_role(db)
+
     policy = get_active_password_policy(db)
 
     # Cliente: usa su correo real como login
@@ -160,14 +208,22 @@ def create_user(db: Session, user_data: UserCreate) -> Usuario:
 
     hashed_password = get_password_hash(final_password)
 
+    acceso_expira, fecha_expiracion_acceso = _normalize_access_expiration(
+        user_data.acceso_expira,
+        user_data.fecha_expiracion_acceso,
+    )
+
     normalized_user_data = user_data.model_copy(
         update={
             "correo": final_email,
             "correo_contacto": contact_email,
             "password": final_password,
+            "rol_id_rol": role.id_rol,
             "nombre": user_data.nombre.strip(),
             "primer_apellido": user_data.primer_apellido.strip(),
             "segundo_apellido": user_data.segundo_apellido.strip() if user_data.segundo_apellido else None,
+            "acceso_expira": acceso_expira,
+            "fecha_expiracion_acceso": fecha_expiracion_acceso,
         }
     )
 
@@ -206,14 +262,26 @@ def update_user(db: Session, user_id: int, user_data: UserUpdate) -> Usuario:
     if not user:
         raise ValueError("Usuario no encontrado.")
 
-    new_role = user_data.rol_id_rol if user_data.rol_id_rol is not None else user.rol_id_rol
-
+    # Resolucion del rol en edicion:
+    # - None         -> no se modifica (se conserva el rol actual del usuario).
+    # - "sin_rol"    -> se quita el rol y se asigna el rol minimo por defecto
+    #                   (se crea bajo demanda si aun no existe).
+    # - cualquier otro -> debe existir y estar activo.
     if user_data.rol_id_rol is not None:
-        role = repository.get_role_by_id(db, user_data.rol_id_rol)
-        if not role:
-            raise ValueError("El rol especificado no existe.")
-        if not role.activo:
-            raise ValueError("No se puede asignar un rol inactivo.")
+        requested_role_id = user_data.rol_id_rol.strip()
+        if requested_role_id == DEFAULT_ROLE_ID:
+            role = _ensure_default_role(db)
+        else:
+            role = repository.get_role_by_id(db, requested_role_id)
+            if not role:
+                raise ValueError("El rol especificado no existe.")
+            if not role.activo:
+                raise ValueError("No se puede asignar un rol inactivo.")
+        new_role = role.id_rol
+        if new_role != user_data.rol_id_rol:
+            user_data = user_data.model_copy(update={"rol_id_rol": new_role})
+    else:
+        new_role = user.rol_id_rol
     # clientes: correo manual y único
     if new_role == "cliente":
         if user_data.correo is not None:
@@ -241,6 +309,31 @@ def update_user(db: Session, user_id: int, user_data: UserUpdate) -> Usuario:
         )
 
         user_data = user_data.model_copy(update={"correo": generated_email})
+
+    # Expiracion de acceso.
+    if user_data.acceso_expira is None:
+        # No se modifica en esta actualizacion: se conservan los valores actuales.
+        user_data = user_data.model_copy(
+            update={
+                "acceso_expira": user.acceso_expira,
+                "fecha_expiracion_acceso": user.fecha_expiracion_acceso,
+            }
+        )
+    elif user_data.acceso_expira:
+        # Si no se envia fecha nueva, se reutiliza la que ya tiene el usuario.
+        fecha = (
+            user_data.fecha_expiracion_acceso
+            if user_data.fecha_expiracion_acceso is not None
+            else user.fecha_expiracion_acceso
+        )
+        acceso_expira, fecha = _normalize_access_expiration(True, fecha)
+        user_data = user_data.model_copy(
+            update={"acceso_expira": acceso_expira, "fecha_expiracion_acceso": fecha}
+        )
+    else:
+        user_data = user_data.model_copy(
+            update={"acceso_expira": False, "fecha_expiracion_acceso": None}
+        )
 
     return repository.update_user(db, user, user_data)
 

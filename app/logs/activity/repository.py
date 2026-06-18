@@ -18,23 +18,16 @@ def guardar_log(db, data):
     Una sesión propia garantiza que el evento se guarde aun cuando el
     request termine con HTTPException.
     """
-    print(f"[AUDIT][guardar_log] entrando evento={data.get('evento')}", flush=True)
     log_db = SessionLocal()
     try:
         log = RegistroActividad(**data)
         log_db.add(log)
         log_db.commit()
         log_db.refresh(log)
-        print(f"[AUDIT][guardar_log] OK id={log.id} evento={data.get('evento')}", flush=True)
         return log
 
     except Exception as exc:
         log_db.rollback()
-        print(
-            f"[AUDIT][guardar_log] FALLO evento={data.get('evento')} | "
-            f"{type(exc).__name__}: {exc}",
-            flush=True,
-        )
         logger.warning(
             "guardar_log falló al insertar evento: %s | data=%s",
             exc,

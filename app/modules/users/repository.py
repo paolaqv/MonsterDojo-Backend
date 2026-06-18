@@ -56,6 +56,8 @@ def create_user(
         fecha_ultimo_cambio_password=now,
         fecha_expiracion_password=now + timedelta(days=dias_expiracion),
         requiere_cambio_password=user_data.rol_id_rol != "cliente",
+        acceso_expira=bool(getattr(user_data, "acceso_expira", False)),
+        fecha_expiracion_acceso=getattr(user_data, "fecha_expiracion_acceso", None),
     )
 
     db.add(user)

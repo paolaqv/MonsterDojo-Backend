@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -56,6 +58,20 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="La cuenta del usuario se encuentra bloqueada.",
         )
+
+    # Expiracion de acceso: se valida en CADA peticion (no solo al iniciar
+    # sesion) para que una sesion ya iniciada quede bloqueada en cuanto venza
+    # la fecha. La columna es TIMESTAMP (naive); se asume UTC para comparar.
+    if user.acceso_expira and user.fecha_expiracion_acceso is not None:
+        expira = user.fecha_expiracion_acceso
+        if expira.tzinfo is None:
+            expira = expira.replace(tzinfo=timezone.utc)
+
+        if expira <= datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Tu acceso al sistema ha expirado. Contacta al administrador.",
+            )
 
     if user.rol is None or not user.rol.activo:
         raise HTTPException(

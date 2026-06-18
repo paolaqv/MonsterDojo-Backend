@@ -62,6 +62,13 @@ class Usuario(Base):
     fecha_expiracion_password: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     requiere_cambio_password: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
+    # Expiracion de acceso al sistema (independiente de la expiracion de contrasena).
+    # acceso_expira=False -> acceso sin limite de tiempo.
+    # acceso_expira=True  -> el acceso vence en fecha_expiracion_acceso.
+    # La columna es TIMESTAMP (naive) en la base remota; se almacena en UTC.
+    acceso_expira: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    fecha_expiracion_acceso: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     rol_id_rol: Mapped[str] = mapped_column(
         String(50),
         ForeignKey("rol.id_rol"),

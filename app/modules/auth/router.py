@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.modules.security.passwords.service import get_active_password_policy
 from app.modules.security.passwords.schemas import PasswordPolicyRead
@@ -55,6 +55,7 @@ settings = get_settings()
 def login(
     payload: LoginRequest,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     try:
@@ -74,7 +75,8 @@ def login(
             user_obj.get("id_usuario") if isinstance(user_obj, dict) else None
         )
 
-        registrar_evento(
+        background_tasks.add_task(
+            registrar_evento,
             db=db,
             usuario_id=user_id_login,
             evento="LOGIN_EXITOSO",

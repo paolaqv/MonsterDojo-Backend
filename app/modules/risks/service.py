@@ -51,7 +51,9 @@ def delete_riesgo(db: Session, riesgo_id: int):
     repository.delete_riesgo(db, riesgo)
 
 # --- MITIGACIONES ---
-def get_mitigaciones(db: Session, riesgo_id: int):
+def get_mitigaciones(db: Session, riesgo_id: int | None = None):
+    if riesgo_id is None:
+        return repository.get_all_mitigaciones(db)
     return repository.get_mitigaciones_by_riesgo(db, riesgo_id)
 
 def create_mitigacion(db: Session, mitigacion: schemas.MitigacionCreate):

@@ -1,54 +1,6 @@
-# import logging
-# import smtplib
-# from email.message import EmailMessage
-#
-# from app.core.config import get_settings
-#
-# logger = logging.getLogger(__name__)
-#
-#
-# def send_email(to_email: str, subject: str, html_body: str, text_body: str | None = None) -> None:
-#     settings = get_settings()
-#
-#     if not settings.smtp_host or not settings.smtp_from_email:
-#         raise ValueError(
-#             "El servicio de correo no está configurado. Define SMTP_HOST y SMTP_FROM_EMAIL."
-#         )
-#
-#     msg = EmailMessage()
-#     msg["Subject"] = subject
-#     msg["From"] = settings.smtp_from_email
-#     msg["To"] = to_email
-#
-#     if text_body:
-#         msg.set_content(text_body)
-#         msg.add_alternative(html_body, subtype="html")
-#     else:
-#         msg.set_content(text_body or "Correo generado por Monster Dojo")
-#         msg.add_alternative(html_body, subtype="html")
-#
-#     logger.info(
-#         "SMTP host=%s port=%s from=%s to=%s",
-#         settings.smtp_host,
-#         settings.smtp_port,
-#         settings.smtp_from_email,
-#         to_email,
-#     )
-#
-#     if settings.smtp_use_tls:
-#         with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
-#             server.starttls()
-#             if settings.smtp_user and settings.smtp_password:
-#                 server.login(settings.smtp_user, settings.smtp_password)
-#             server.send_message(msg)
-#     else:
-#         with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port) as server:
-#             if settings.smtp_user and settings.smtp_password:
-#                 server.login(settings.smtp_user, settings.smtp_password)
-#             server.send_message(msg)
-
 import base64
 import logging
+import smtplib
 from email.message import EmailMessage
 
 import httpx
@@ -59,6 +11,39 @@ logger = logging.getLogger(__name__)
 
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GMAIL_SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
+
+
+def _gmail_api_is_configured() -> bool:
+    """Indica si están definidas todas las variables para usar la Gmail API."""
+    settings = get_settings()
+    return bool(
+        settings.gmail_client_id
+        and settings.gmail_client_secret
+        and settings.gmail_refresh_token
+        and settings.gmail_sender_email
+    )
+
+
+def _smtp_is_configured() -> bool:
+    """Indica si están definidas las variables mínimas para usar SMTP."""
+    settings = get_settings()
+    return bool(settings.smtp_host and settings.smtp_from_email)
+
+
+def _build_message(
+    from_email: str,
+    to_email: str,
+    subject: str,
+    html_body: str,
+    text_body: str | None = None,
+) -> EmailMessage:
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = from_email
+    message["To"] = to_email
+    message.set_content(text_body or "Correo generado por Monster Dojo.")
+    message.add_alternative(html_body, subtype="html")
+    return message
 
 
 def _get_gmail_access_token() -> str:
@@ -126,7 +111,7 @@ def _get_gmail_access_token() -> str:
         ) from error
 
 
-def send_email(
+def _send_email_gmail_api(
     to_email: str,
     subject: str,
     html_body: str,
@@ -141,15 +126,13 @@ def send_email(
 
     access_token = _get_gmail_access_token()
 
-    message = EmailMessage()
-    message["Subject"] = subject
-    message["From"] = settings.gmail_sender_email
-    message["To"] = to_email
-
-    message.set_content(
-        text_body or "Correo generado por Monster Dojo."
+    message = _build_message(
+        from_email=settings.gmail_sender_email,
+        to_email=to_email,
+        subject=subject,
+        html_body=html_body,
+        text_body=text_body,
     )
-    message.add_alternative(html_body, subtype="html")
 
     encoded_message = base64.urlsafe_b64encode(
         message.as_bytes()
@@ -201,3 +184,94 @@ def send_email(
         raise RuntimeError(
             "No se pudo conectar con el servicio de correo electrónico."
         ) from error
+
+
+def _send_email_smtp(
+    to_email: str,
+    subject: str,
+    html_body: str,
+    text_body: str | None = None,
+) -> None:
+    settings = get_settings()
+
+    if not settings.smtp_host or not settings.smtp_from_email:
+        raise ValueError(
+            "El servicio de correo no está configurado. Define SMTP_HOST y SMTP_FROM_EMAIL."
+        )
+
+    message = _build_message(
+        from_email=settings.smtp_from_email,
+        to_email=to_email,
+        subject=subject,
+        html_body=html_body,
+        text_body=text_body,
+    )
+
+    logger.info(
+        "Enviando correo mediante SMTP host=%s port=%s desde %s hacia %s",
+        settings.smtp_host,
+        settings.smtp_port,
+        settings.smtp_from_email,
+        to_email,
+    )
+
+    try:
+        if settings.smtp_use_tls:
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20.0) as server:
+                server.starttls()
+                if settings.smtp_user and settings.smtp_password:
+                    server.login(settings.smtp_user, settings.smtp_password)
+                server.send_message(message)
+        else:
+            with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=20.0) as server:
+                if settings.smtp_user and settings.smtp_password:
+                    server.login(settings.smtp_user, settings.smtp_password)
+                server.send_message(message)
+
+        logger.info("Correo enviado correctamente mediante SMTP hacia %s", to_email)
+
+    except smtplib.SMTPException as error:
+        logger.error(
+            "SMTP rechazó el envío hacia %s: %s",
+            to_email,
+            str(error),
+        )
+        raise RuntimeError(
+            "No se pudo enviar el correo electrónico."
+        ) from error
+
+    except OSError as error:
+        logger.error(
+            "No se pudo conectar con el servidor SMTP para enviar correo hacia %s: %s",
+            to_email,
+            str(error),
+        )
+        raise RuntimeError(
+            "No se pudo conectar con el servicio de correo electrónico."
+        ) from error
+
+
+def send_email(
+    to_email: str,
+    subject: str,
+    html_body: str,
+    text_body: str | None = None,
+) -> None:
+    """Envía un correo usando la Gmail API si está configurada; si no, usa SMTP.
+
+    En producción se recomienda la Gmail API (HTTPS). En entornos donde solo
+    están definidas las variables SMTP_*, se usa SMTP como alternativa.
+    """
+    if _gmail_api_is_configured():
+        _send_email_gmail_api(to_email, subject, html_body, text_body)
+        return
+
+    if _smtp_is_configured():
+        _send_email_smtp(to_email, subject, html_body, text_body)
+        return
+
+    raise ValueError(
+        "El servicio de correo no está configurado. Define las variables GMAIL_* "
+        "(GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, GMAIL_SENDER_EMAIL) "
+        "o, en su defecto, SMTP_HOST y SMTP_FROM_EMAIL."
+    )

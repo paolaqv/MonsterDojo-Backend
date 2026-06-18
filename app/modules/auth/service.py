@@ -78,10 +78,32 @@ def authenticate_user(db: Session, email: str, password: str) -> Usuario:
 
         raise ValueError("Credenciales inválidas.")
 
-    user.intentos_fallidos = 0
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    if user.intentos_fallidos:
+        user.intentos_fallidos = 0
+        db.add(user)
+        db.commit()
+
+    # Expiracion de acceso al sistema: si vencio, se bloquea el ingreso.
+    # La columna es TIMESTAMP (naive); se asume UTC para comparar con now(UTC).
+    if user.acceso_expira and user.fecha_expiracion_acceso is not None:
+        expira = user.fecha_expiracion_acceso
+        if expira.tzinfo is None:
+            expira = expira.replace(tzinfo=timezone.utc)
+
+        if expira <= datetime.now(timezone.utc):
+            registrar_evento(
+                db=db,
+                usuario_id=user.id_usuario,
+                evento="ACCESO_EXPIRADO",
+                modulo="auth",
+                accion="POLICY",
+                estado="DENEGADO",
+                severidad="MEDIA",
+                descripcion=f"El acceso del usuario {user.correo} expiró el {expira.isoformat()}.",
+                entidad_afectada="usuario",
+                entidad_id=user.id_usuario,
+            )
+            raise ValueError("Tu acceso al sistema ha expirado. Contacta al administrador.")
 
     if user.requiere_cambio_password:
         raise ValueError("Debes cambiar tu contraseña antes de continuar.")
